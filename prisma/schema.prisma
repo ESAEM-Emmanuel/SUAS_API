@@ -1,0 +1,217 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//model user
+model User {
+  id               String       @id @default(uuid())
+  userName         String       @unique
+  referenceNumber  String       @unique
+  email            String       @unique
+  phone            String       @unique
+  password         String
+  name             String       @unique
+  photo            String?
+  gender           Gender?    @default(MALE)
+  userRole         String?
+  isStaff          Boolean      @default(false)
+  isAdmin          Boolean      @default(false)
+  isOwner          Boolean      @default(false)
+  isActive         Boolean      @default(true)
+  createdBy        String?
+  updatedBy        String?
+
+  categoriesCreated Category[]  @relation("CreatedBy")
+  categoriesUpdated Category[]  @relation("UpdatedBy")
+
+  eventsCreated     Event[]     @relation("CreatedBy")
+  eventsUpdated     Event[]     @relation("UpdatedBy")
+  eventsApprovedBy  Event[]     @relation("ApprovedBy")
+  eventsOwner       Event[]     @relation("OwnerId")
+
+  workshopsCreatedBy Workshop[] @relation("CreatedBy")
+  workshopsUpdatedBy Workshop[] @relation("UpdatedBy")
+  workshopsApprovedBy Workshop[] @relation("ApprovedBy")
+
+  participantsCreated     Participant[]     @relation("CreatedBy")
+  participantsUpdated     Participant[]     @relation("UpdatedBy")
+  participantsApprovedBy  Participant[]     @relation("ApprovedBy")
+  participantsOwner       Participant[]     @relation("OwnerId")
+
+  permissionsCreated Permission[]  @relation("CreatedBy")
+  permissionsUpdated Permission[]  @relation("UpdatedBy")
+
+  userRolesCreated UserRole[]  @relation("CreatedBy")
+  userRolesUpdated UserRole[]  @relation("UpdatedBy")
+
+  participantRolesCreated ParticipantRole[]  @relation("CreatedBy")
+  participantRolesUpdated ParticipantRole[]  @relation("UpdatedBy")
+}
+
+// Model Category
+model Category {
+  id              String      @id @default(uuid())
+  referenceNumber String      @unique
+  name            String
+  description     String?     @db.Text
+  photo           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  isActive        Boolean     @default(true)
+  createdById     String?     
+  updatedById     String?
+
+  created         User?       @relation("CreatedBy", fields: [createdById], references: [id])
+  updated         User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
+
+  events          Event[]     @relation("Category")
+}
+
+// Model Event
+model Event {
+  id              String      @id @default(uuid())
+  referenceNumber String      @unique
+  name            String
+  description     String      @db.Text
+  photo           String
+  date            DateTime
+  startDate       DateTime
+  endDate         DateTime
+  isApproved      Boolean     @default(false)
+  approvedAt      DateTime?
+  createdById     String? 
+  updatedById     String?
+  approvedById    String?
+  ownerId         String
+  categoryId      String
+
+  created         User?       @relation("CreatedBy", fields: [createdById], references: [id])
+  updated         User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
+  approved        User?       @relation("ApprovedBy", fields: [approvedById], references: [id])
+  owner           User?       @relation("OwnerId", fields: [ownerId], references: [id])
+  category        Category    @relation("Category", fields: [categoryId], references: [id])
+
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  approvedByAt      DateTime
+
+  workshops       Workshop[]  @relation("Event")
+}
+
+// Model Workshop
+model Workshop {
+  id               String      @id @default(uuid())
+  referenceNumber  String      @unique
+  name             String
+  description      String      @db.Text
+  room             String
+  photo            String
+  numberOfPlaces   Int
+  price           Decimal
+  isOnlineWorkshop Boolean     @default(false)
+  isApproved       Boolean     @default(false)
+  approvedAt       DateTime?
+  startDate        DateTime
+  endDate          DateTime
+  isActive         Boolean     @default(true)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  approvedByAt     DateTime
+  createdById      String? 
+  updatedById      String?
+  approvedById     String?
+  eventId          String
+  created          User?       @relation("CreatedBy", fields: [createdById], references: [id])
+  updated          User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
+  approved         User?       @relation("ApprovedBy", fields: [approvedById], references: [id])
+  event            Event       @relation("Event", fields: [eventId], references: [id])
+
+  participants     Participant[]  @relation("Workshop")
+}
+
+// Model Participant
+model Participant {
+  id                String      @id @default(uuid())
+  referenceNumber   String      @unique
+  name              String
+  description       String      @db.Text
+  room              String
+  isIntegratedAs    String
+  isOnlineWorkshop  Boolean     @default(false)
+  isApproved        Boolean     @default(false)
+  approvedAt        DateTime?
+  startDate         DateTime
+  endDate           DateTime
+  createdById       String?
+  updatedById       String?
+  approvedById      String?
+  workshopId        String
+  ownerId           String
+  created           User?       @relation("CreatedBy", fields: [createdById], references: [id])
+  updated           User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
+  approved          User?      @relation("ApprovedBy", fields: [approvedById], references: [id])
+  owner             User?       @relation("OwnerId", fields: [ownerId], references: [id])
+  workshop          Workshop    @relation("Workshop", fields: [workshopId], references: [id])
+  isActive          Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  approvedByAt      DateTime 
+}
+
+
+// Model Permission
+model Permission {
+  id                  String       @id @default(uuid())
+  referenceNumber     String       @unique
+  name                String       @unique
+  createdById         String? 
+  updatedById         String?
+  created           User?       @relation("CreatedBy", fields: [createdById], references: [id])
+  updated           User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
+  isActive            Boolean      @default(true)
+}
+
+// Model UserRole
+model UserRole {
+  id                  String       @id @default(uuid())
+  referenceNumber     String       @unique
+  name                String       @unique
+  permissions_listing String[]
+  createdById         String? 
+  updatedById         String?
+  created           User?       @relation("CreatedBy", fields: [createdById], references: [id])
+  updated           User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
+  isActive            Boolean      @default(true)
+}
+
+// Model ParticipantRole
+model ParticipantRole {
+  id                  String           @id @default(uuid())
+  referenceNumber     String           @unique
+  name                String           @unique
+  permissions_listing String[]
+  createdById         String? 
+  updatedById         String?
+  created           User?       @relation("CreatedBy", fields: [createdById], references: [id])
+  updated           User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
+  isActive            Boolean      @default(true)
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
