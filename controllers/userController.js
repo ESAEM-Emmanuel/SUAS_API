@@ -15,7 +15,7 @@ exports.createUser = async (req, res) => {
     photo,
     phone,
     gender,
-    userRole,
+    userRoleRoleId,
     isAdmin,
     isStaff,
     isOwner,
@@ -24,9 +24,9 @@ exports.createUser = async (req, res) => {
 
   try {
     // Vérification des champs obligatoires
-    console.log(userName, email, password, userRole);
-    if (!userName || !email || !password || !userRole) {
-      return res.status(400).json({ error: 'Les champs obligatoires doivent être renseignés: userName, email, password, userRole.' });
+    console.log(userName, email, password, userRoleRoleId);
+    if (!userName || !email || !password || !userRoleRoleId) {
+      return res.status(400).json({ error: 'Les champs obligatoires doivent être renseignés: userName, email, password, userRoleRoleId.' });
     }
 
     // Génération du numéro de référence unique
@@ -47,7 +47,7 @@ exports.createUser = async (req, res) => {
         photo: photo || null,  // Ajoutez cette ligne
         phone,
         gender,
-        userRole,
+        userRoleRoleId,
         isAdmin: isAdmin || false,
         isStaff: isStaff || false,
         isOwner: isOwner || false,
