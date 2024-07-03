@@ -9,65 +9,120 @@ const permissionResponseSerializer = require('../serializers/permissionResponseS
 const permissionDetailResponseSerializer = require('../serializers/permissionDetailResponseSerializer');
 
 // Fonction pour créer un nouvel Permission
-exports.createpermission = async (req, res) => {
-    const {
-      name,
-    } = req.body;
-  
-    try {
-      // Validation des données d'entrée
-      const { error } = permissionCreateSerializer.validate(req.body);
-      if (error) {
-        return res.status(400).json({ error: error.details[0].message });
-      }
-  
-      // Vérification des contraintes d'unicité
-      const [existingname] = await Promise.all([
-        prisma.permission.findUnique({ where: { name: name } })
-      ]);
-  
-      if (existingname) {
-        return res.status(400).json({ error: 'permission already exists' });
-      }
-  
-  
-  
-      // Génération du numéro de référence unique
-      const referenceNumber = await generateUniqueReferenceNumber(prisma.permission);
-  
-      // Création de la permission avec Prisma
-      const newpermission = await prisma.permission.create({
-        data: {
-          name,
-          referenceNumber,
-          isActive: isActive || true,
-        },
-      });
-  
-      // Formatage de la réponse
-      const formattedpermission = permissionResponseSerializer(newpermission);
-  
-      // Réponse avec la permission créé
-      return res.status(201).json(formattedpermission);
-    } catch (error) {
-      console.error('Erreur lors de la création de la permission :', error);
-      return res.status(500).json({ error: 'Erreur interne du serveur' });
+// exports.createPermission = async (req, res) => {
+//   const { name } = req.body;
+
+//   try {
+//     // Validation des données d'entrée
+//     const { error } = permissionCreateSerializer.validate(req.body);
+//     if (error) {
+//       return res.status(400).json({ error: error.details[0].message });
+//     }
+
+//     // Vérification des contraintes d'unicité
+//     const existingPermission = await prisma.permission.findUnique({ where: { name } });
+//     if (existingPermission) {
+//       return res.status(400).json({ error: 'Permission already exists' });
+//     }
+
+//     // Génération du numéro de référence unique
+//     const referenceNumber = await generateUniqueReferenceNumber(prisma.permission);
+
+//     // Création de la permission avec Prisma
+//     const newPermission = await prisma.permission.create({
+//       data: {
+//         name,
+//         referenceNumber,
+//         isActive: true,
+//       },
+//     });
+
+//     // Réponse avec la permission créée
+//     return res.status(201).json(newPermission);
+//   } catch (error) {
+//     console.error('Erreur lors de la création de la permission :', error);
+//     return res.status(500).json({ error: 'Erreur interne du serveur' });
+//   }
+// };
+exports.createPermission = async (req, res) => {
+  const { name} = req.body;
+
+  try {
+    // Validation des données d'entrée
+    const { error } = permissionCreateSerializer.validate(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
     }
-  };
+
+    // Vérification des contraintes d'unicité
+    const existingPermission = await prisma.permission.findUnique({ where: { name } });
+    if (existingPermission) {
+      return res.status(400).json({ error: 'Permission already exists' });
+    }
+
+    // Génération du numéro de référence unique
+    const referenceNumber = await generateUniqueReferenceNumber(prisma.permission);
+    console.log(referenceNumber);
+
+    // Création de la permission avec Prisma
+    const newPermission = await prisma.permission.create({
+      data: {
+        name,
+        referenceNumber,
+        isActive: true,
+      },
+    });
+    // Réponse avec la permission créée
+    return res.status(201).json(newPermission);
+  } catch (error) {
+    console.error('Erreur lors de la création de la permission :', error);
+    return res.status(500).json({ error: 'Erreur interne du serveur' });
+  }
+};
+
   
   
   // Fonction pour récupérer tous les permissions avec pagination
-  exports.getpermissions = async (req, res) => {
+  exports.getPermissions = async (req, res) => {
     const { page = 1, limit = 100 } = req.query;
   
     try {
       const permissions = await prisma.permission.findMany({
         skip: (page - 1) * limit,
         take: parseInt(limit),
+        where: {
+          isActive: true,
+        },
+        orderBy: {
+          name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
+        },
       });
   
-      const formattedpermissions = permissions.map(permissionResponseSerializer);
-      return res.status(200).json(formattedpermissions);
+      const formatedpermissions = permissions.map(permissionResponseSerializer);
+      return res.status(200).json(formatedpermissions);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des Permissions :', error);
+      return res.status(500).json({ error: 'Erreur interne du serveur' });
+    }
+  };
+  // Fonction pour récupérer tous les permissions avec pagination
+  exports.getPermissionsInactifs = async (req, res) => {
+    const { page = 1, limit = 100 } = req.query;
+  
+    try {
+      const permissions = await prisma.permission.findMany({
+        skip: (page - 1) * limit,
+        take: parseInt(limit),
+        where: {
+          isActive: false,
+        },
+        orderBy: {
+          name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
+        },
+      });
+  
+      const formatedpermissions = permissions.map(permissionResponseSerializer);
+      return res.status(200).json(formatedpermissions);
     } catch (error) {
       console.error('Erreur lors de la récupération des Permissions :', error);
       return res.status(500).json({ error: 'Erreur interne du serveur' });
@@ -75,7 +130,7 @@ exports.createpermission = async (req, res) => {
   };
   
   // Fonction pour récupérer une permission par son ID
-  exports.getpermission = async (req, res) => {
+  exports.getPermission = async (req, res) => {
     console.log("getpermission ok");
     const { id } = req.params;
   
@@ -100,7 +155,7 @@ exports.createpermission = async (req, res) => {
   };
   
   // Fonction pour mettre à jour une permission
-  exports.updatepermission = async (req, res) => {
+  exports.updatePermission = async (req, res) => {
     const { id } = req.params;
     const {
       name,
@@ -144,7 +199,7 @@ exports.createpermission = async (req, res) => {
   };
   
   // Fonction pour supprimer une permission
-  exports.deletepermission = async (req, res) => {
+  exports.deletePermission = async (req, res) => {
     const { id } = req.params;
   
     try {
@@ -171,7 +226,7 @@ exports.createpermission = async (req, res) => {
   };
   
   // Fonction pour restorer une permission
-  exports.restorepermission = async (req, res) => {
+  exports.restorePermission = async (req, res) => {
     const { id } = req.params;
   
     try {

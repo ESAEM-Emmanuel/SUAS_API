@@ -44,8 +44,8 @@ exports.createUser = async (req, res) => {
     // Vérification des contraintes d'unicité
     const [existingUser, existingEmail, existingPhone] = await Promise.all([
       prisma.user.findUnique({ where: { userName: userName } }),
-      prisma.user.findUnique({ where: { phone: phone } }),
-      prisma.user.findUnique({ where: { email: email } })
+      prisma.user.findUnique({ where: { email: email } }),
+      prisma.user.findUnique({ where: { phone: phone } })
     ]);
 
     if (existingUser) {
@@ -144,10 +144,40 @@ exports.getUsers = async (req, res) => {
     const users = await prisma.user.findMany({
       skip: (page - 1) * limit,
       take: parseInt(limit),
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
+      },
     });
 
-    const formattedUsers = users.map(userResponseSerializer);
-    return res.status(200).json(formattedUsers);
+    const formatedUsers = users.map(userResponseSerializer);
+    return res.status(200).json(formatedUsers);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des utilisateurs :', error);
+    return res.status(500).json({ error: 'Erreur interne du serveur' });
+  }
+};
+
+// Fonction pour récupérer tous les utilisateurs avec pagination
+exports.getUsersInactifs = async (req, res) => {
+  const { page = 1, limit = 100 } = req.query;
+
+  try {
+    const users = await prisma.user.findMany({
+      skip: (page - 1) * limit,
+      take: parseInt(limit),
+      where: {
+        isActive: false,
+      },
+      orderBy: {
+        name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
+      },
+    });
+
+    const formatedUsers = users.map(userResponseSerializer);
+    return res.status(200).json(formatedUsers);
   } catch (error) {
     console.error('Erreur lors de la récupération des utilisateurs :', error);
     return res.status(500).json({ error: 'Erreur interne du serveur' });

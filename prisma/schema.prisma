@@ -51,6 +51,10 @@ model User {
   participantsApprovedBy  Participant[]     @relation("ApprovedBy")
   participantsOwner       Participant[]     @relation("OwnerId")
 
+  masterOfCeremoniesCreated     MasterOfCeremony[]     @relation("CreatedBy")
+  masterOfCeremoniesUpdated     MasterOfCeremony[]     @relation("UpdatedBy")
+  masterOfCeremoniesOwner       MasterOfCeremony[]     @relation("OwnerId")
+
   messagesCreated Message[]  @relation("CreatedBy")
   messagesUpdated Message[]  @relation("UpdatedBy")
 
@@ -110,9 +114,10 @@ model Event {
   isActive        Boolean     @default(true)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
-  approvedByAt      DateTime
+  approvedByAt    DateTime
 
   workshops       Workshop[]  @relation("Event")
+  masterOfCeremonies       MasterOfCeremony[]  @relation("Event")
 }
 
 // Model Workshop
@@ -147,6 +152,26 @@ model Workshop {
   messages         Message[]      @relation("Workshop")
 }
 
+// Model MasterOfCeremony
+model MasterOfCeremony {
+  id                String      @id @default(uuid())
+  referenceNumber   String      @unique
+  description       String      @db.Text
+  startDate         DateTime
+  endDate           DateTime
+  createdById       String?
+  updatedById       String?
+  ownerId           String
+  eventId           String
+  created           User?       @relation("CreatedBy", fields: [createdById], references: [id])
+  updated           User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
+  owner             User?       @relation("OwnerId", fields: [ownerId], references: [id])
+  event            Event       @relation("Event", fields: [eventId], references: [id])
+  isActive          Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
 // Model Participant
 model Participant {
   id                String      @id @default(uuid())
@@ -159,8 +184,6 @@ model Participant {
   isOnlineWorkshop  Boolean     @default(false)
   isApproved        Boolean     @default(false)
   approvedAt        DateTime?
-  startDate         DateTime
-  endDate           DateTime
   createdById       String?
   updatedById       String?
   approvedById      String?
@@ -174,7 +197,7 @@ model Participant {
   isActive          Boolean     @default(true)
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
-  
+
   messages         Message[]      @relation("Participant")
 }
 
@@ -202,15 +225,17 @@ model Message {
 
 // Model Permission
 model Permission {
-  id                  String       @id @default(uuid())
-  referenceNumber     String       @unique
-  name                String       @unique
-  createdById         String? 
-  updatedById         String?
-  created           User?       @relation("CreatedBy", fields: [createdById], references: [id])
-  updated           User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
-  isActive            Boolean      @default(true)
-}
+  id              String   @id @default(uuid())
+  referenceNumber String   @unique
+  name            String   @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdById     String? 
+  updatedById     String?
+  created         User?    @relation("CreatedBy", fields: [createdById], references: [id])
+  updated         User?    @relation("UpdatedBy", fields: [updatedById], references: [id])
+  isActive        Boolean  @default(true)
+} 
 
 // Model UserRole
 model UserRole {

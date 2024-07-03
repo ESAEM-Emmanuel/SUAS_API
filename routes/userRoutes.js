@@ -12,6 +12,7 @@ router.use(verifyToken);
 
 // Routes protégées
 router.get('/', userController.getUsers);
+router.get('/inactif', userController.getUsersInactifs);
 router.get('/:id', userController.getUser);
 router.put('/:id', userController.updateUser);
 router.delete('/:id', userController.deleteUser);

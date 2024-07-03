@@ -22,7 +22,7 @@ module.exports = pool;
 // const fileRoutes = require("./routes/fileRoutes");
 // const participantRoleRoutes = require("./routes/participantRoleRoutes");
 // const participantRoutes = require("./routes/participantRoutes");
-// const permissionRoutes = require("./routes/permissionRoutes");
+// 
 // const userRoutes = require("./routes/userRoutes");
 // const userRoleRoutes = require("./routes/userRoleRoutes");
 // const workshopRoutes = require("./routes/workshopRoutes");
@@ -49,7 +49,7 @@ module.exports = pool;
 // app.use("/events", eventRoutes);
 // app.use("/file", fileRoutes);
 // app.use("/participant", participantRoutes);
-// app.use("/permissions", permissionRoutes);
+// 
 // app.use("/participantroles", participantRoleRoutes);
 // app.use("/userRoles", userRoleRoutes);
 // app.use("/workshops", workshopRoutes);
