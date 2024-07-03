@@ -10,6 +10,7 @@ router.use(verifyToken);
 
 // Routes protégées
 router.post('/create', permissionController.createPermission);
+router.get('/inactifs', permissionController.getPermissions);
 router.get('/', permissionController.getPermissions);
 router.get('/:id', permissionController.getPermission);
 router.put('/:id', permissionController.updatePermission);
