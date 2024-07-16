@@ -11,7 +11,7 @@ const userDetailResponseSerializer = require('../serializers/userDetailResponseS
 // Fonction pour créer un nouvel utilisateur
 exports.createUser = async (req, res) => {
   const {
-    userName,
+    username,
     email,
     password,
     name,
@@ -42,14 +42,15 @@ exports.createUser = async (req, res) => {
     }
 
     // Vérification des contraintes d'unicité
-    const [existingUser, existingEmail, existingPhone] = await Promise.all([
-      prisma.user.findUnique({ where: { userName: userName } }),
+    const [existingUser, existingEmail, existingPhone, existingPhoto] = await Promise.all([
+      prisma.user.findUnique({ where: { username: username } }),
       prisma.user.findUnique({ where: { email: email } }),
-      prisma.user.findUnique({ where: { phone: phone } })
+      prisma.user.findUnique({ where: { phone: phone } }),
+      prisma.user.findUnique({ where: { photo: photo } })
     ]);
 
     if (existingUser) {
-      return res.status(400).json({ error: 'UserName already exists' });
+      return res.status(400).json({ error: 'username already exists' });
     }
 
     if (existingPhone) {
@@ -58,6 +59,9 @@ exports.createUser = async (req, res) => {
 
     if (existingEmail) {
       return res.status(400).json({ error: 'Email already exists' });
+    }
+    if (existingPhoto) {
+      return res.status(400).json({ error: 'Photo already exists' });
     }
 
 
@@ -70,7 +74,7 @@ exports.createUser = async (req, res) => {
     // Création de l'utilisateur avec Prisma
     const newUser = await prisma.user.create({
       data: {
-        userName,
+        username,
         referenceNumber,
         email,
         password: hashedPassword,
@@ -83,6 +87,7 @@ exports.createUser = async (req, res) => {
         isStaff: isStaff || false,
         isOwner: isOwner || false,
         isActive: isActive || true,
+        updatedAt: DateTime.now,
       },
     });
 
@@ -99,13 +104,13 @@ exports.createUser = async (req, res) => {
 
 // Fonction pour gérer la connexion d'un utilisateur
 exports.login = async (req, res) => {
-  const { userName, password } = req.body;
+  const { username, password } = req.body;
 
   try {
     // Recherche de l'utilisateur par nom d'utilisateur
     const user = await prisma.user.findUnique({
       where: {
-        userName,
+        username,
       },
     });
 
@@ -122,7 +127,7 @@ exports.login = async (req, res) => {
 
     // Création du token JWT
     const token = jwt.sign(
-      { userId: user.id, userName: user.userName },
+      { userId: user.id, username: user.username },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
@@ -237,7 +242,7 @@ exports.getUser = async (req, res) => {
 exports.updateUser = async (req, res) => {
   const { id } = req.params;
   const {
-    userName,
+    username,
     email,
     password,
     name,
@@ -271,7 +276,7 @@ exports.updateUser = async (req, res) => {
         id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
       },
       data: {
-        userName,
+        username,
         email,
         ...(password && { password: hashedPassword }), // Inclus le mot de passe seulement s'il est présent
         name,
@@ -283,6 +288,8 @@ exports.updateUser = async (req, res) => {
         isStaff: isStaff !== undefined ? isStaff : false,
         isOwner: isOwner !== undefined ? isOwner : false,
         isActive: isActive !== undefined ? isActive : true,
+        updatedById: req.userId,
+        updatedAt: DateTime.now,
       },
     });
 
@@ -332,6 +339,18 @@ exports.updateUser = async (req, res) => {
 // Fonction pour supprimer un utilisateur
 exports.deleteUser = async (req, res) => {
   const { id } = req.params;
+  // Recherche de l'utilisateur par nom d'utilisateur
+  const user = await prisma.user.findUnique({
+    where: {
+      id:id,
+      isActive:true
+    },
+  });
+
+  // Vérification de l'utilisateur
+  if (!user) {
+    return res.status(404).json({ error: 'Utilisateur non trouvé' });
+  }
 
   try {
     // Mise à jour de l'utilisateur pour une suppression douce
@@ -341,6 +360,8 @@ exports.deleteUser = async (req, res) => {
       },
       data: {
         isActive: false,
+        updatedById: req.userId,
+        updatedAt: DateTime.now
       },
     });
 
@@ -359,6 +380,18 @@ exports.deleteUser = async (req, res) => {
 // Fonction pour restorer un utilisateur
 exports.restoreUser = async (req, res) => {
   const { id } = req.params;
+  // Recherche de l'utilisateur par nom d'utilisateur
+  const user = await prisma.user.findUnique({
+    where: {
+      id:id,
+      isActive:false
+    },
+  });
+
+  // Vérification de l'utilisateur
+  if (!user) {
+    return res.status(404).json({ error: 'Utilisateur non trouvé' });
+  }
 
   try {
     // Vérification de l'existence de l'utilisateur
@@ -377,6 +410,8 @@ exports.restoreUser = async (req, res) => {
       },
       data: {
         isActive: true,
+        updatedById: req.userId,
+        updatedAt: DateTime.now
       },
     });
 

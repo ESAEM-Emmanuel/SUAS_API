@@ -9,41 +9,6 @@ const permissionResponseSerializer = require('../serializers/permissionResponseS
 const permissionDetailResponseSerializer = require('../serializers/permissionDetailResponseSerializer');
 
 // Fonction pour créer un nouvel Permission
-// exports.createPermission = async (req, res) => {
-//   const { name } = req.body;
-
-//   try {
-//     // Validation des données d'entrée
-//     const { error } = permissionCreateSerializer.validate(req.body);
-//     if (error) {
-//       return res.status(400).json({ error: error.details[0].message });
-//     }
-
-//     // Vérification des contraintes d'unicité
-//     const existingPermission = await prisma.permission.findUnique({ where: { name } });
-//     if (existingPermission) {
-//       return res.status(400).json({ error: 'Permission already exists' });
-//     }
-
-//     // Génération du numéro de référence unique
-//     const referenceNumber = await generateUniqueReferenceNumber(prisma.permission);
-
-//     // Création de la permission avec Prisma
-//     const newPermission = await prisma.permission.create({
-//       data: {
-//         name,
-//         referenceNumber,
-//         isActive: true,
-//       },
-//     });
-
-//     // Réponse avec la permission créée
-//     return res.status(201).json(newPermission);
-//   } catch (error) {
-//     console.error('Erreur lors de la création de la permission :', error);
-//     return res.status(500).json({ error: 'Erreur interne du serveur' });
-//   }
-// };
 exports.createPermission = async (req, res) => {
   const { name} = req.body;
 
@@ -70,10 +35,12 @@ exports.createPermission = async (req, res) => {
         name,
         referenceNumber,
         isActive: true,
+        createdById: req.userId,
       },
     });
     // Réponse avec la permission créée
-    return res.status(201).json(newPermission);
+    const formattedPermission = permissionResponseSerializer(newPermission);
+    return res.status(201).json(formattedPermission);
   } catch (error) {
     console.error('Erreur lors de la création de la permission :', error);
     return res.status(500).json({ error: 'Erreur interne du serveur' });
@@ -98,8 +65,8 @@ exports.createPermission = async (req, res) => {
         },
       });
   
-      const formatedpermissions = permissions.map(permissionResponseSerializer);
-      return res.status(200).json(formatedpermissions);
+      const formatedPermissions = permissions.map(permissionResponseSerializer);
+      return res.status(200).json(formatedPermissions);
     } catch (error) {
       console.error('Erreur lors de la récupération des Permissions :', error);
       return res.status(500).json({ error: 'Erreur interne du serveur' });
@@ -121,8 +88,8 @@ exports.createPermission = async (req, res) => {
         },
       });
   
-      const formatedpermissions = permissions.map(permissionResponseSerializer);
-      return res.status(200).json(formatedpermissions);
+      const formatedPermissions = permissions.map(permissionResponseSerializer);
+      return res.status(200).json(formatedPermissions);
     } catch (error) {
       console.error('Erreur lors de la récupération des Permissions :', error);
       return res.status(500).json({ error: 'Erreur interne du serveur' });
@@ -170,12 +137,13 @@ exports.createPermission = async (req, res) => {
       }
   
       // Mise à jour de la permission
-      const updatedpermission = await prisma.permission.update({
+      const updatedPermission = await prisma.permission.update({
         where: {
           id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
         },
         data: {
           name,
+          updatedById: req.userId,
         },
       });
   
@@ -201,19 +169,32 @@ exports.createPermission = async (req, res) => {
   // Fonction pour supprimer une permission
   exports.deletePermission = async (req, res) => {
     const { id } = req.params;
+    // Recherche de l'permission par nom d'permission
+    const queryPermission = await prisma.permission.findUnique({
+      where: {
+        id:id,
+        isActive:true
+      },
+    });
+
+    // Vérification de l'permission
+    if (!queryPermission) {
+      return res.status(404).json({ error: 'Permission non trouvé' });
+    }
   
     try {
       // Mise à jour de la permission pour une suppression douce
-      const deletedpermission = await prisma.permission.update({
+      const deletedPermission = await prisma.permission.update({
         where: {
           id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
         },
         data: {
           isActive: false,
+          updatedById: req.userId,
         },
       });
   
-      if (!deletedpermission) {
+      if (!deletedPermission) {
         return res.status(404).json({ error: 'Permission non trouvé' });
       }
   
@@ -228,6 +209,19 @@ exports.createPermission = async (req, res) => {
   // Fonction pour restorer une permission
   exports.restorePermission = async (req, res) => {
     const { id } = req.params;
+
+    // Recherche de l'permission par nom d'permission
+    const queryPermission = await prisma.permission.findUnique({
+      where: {
+        id:id,
+        isActive:false
+      },
+    });
+
+    // Vérification de l'permission
+    if (!queryPermission) {
+      return res.status(404).json({ error: 'Permission non trouvé' });
+    }
   
     try {
       // Vérification de l'existence de la permission
@@ -246,6 +240,7 @@ exports.createPermission = async (req, res) => {
         },
         data: {
           isActive: true,
+          updatedById: req.userId,
         },
       });
   

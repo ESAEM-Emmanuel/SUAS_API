@@ -1,7 +1,7 @@
 const Joi = require('joi');
 
 const userCreateSerializer = Joi.object({
-  userName: Joi.string().required(),
+  username: Joi.string().required(),
   email: Joi.string().email().required(),
   password: Joi.string().optional(),
   phone: Joi.string().required(),

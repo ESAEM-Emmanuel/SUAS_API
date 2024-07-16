@@ -1,6 +1,6 @@
 const userResponseSerializer = (user) => ({
     id: user.id,
-    userName: user.userName,
+    username: user.username,
     referenceNumber: user.referenceNumber,
     email: user.email,
     phone: user.phone,

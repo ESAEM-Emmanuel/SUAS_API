@@ -6,7 +6,7 @@ const prisma = new PrismaClient(); // Instance de Prisma Client pour exécuter d
 // Fonction pour générer un token JWT à partir des informations de l'utilisateur
 const generateToken = (user) => {
   return jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-    expiresIn: '30d', // Le token expirera après 30 jours
+    expiresIn: '366d', // Le token expirera après 30 jours
   });
 };
 

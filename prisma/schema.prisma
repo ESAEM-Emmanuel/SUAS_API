@@ -16,13 +16,13 @@ datasource db {
 //model user
 model User {
   id               String       @id @default(uuid())
-  userName         String       @unique
+  username         String       @unique
   referenceNumber  String       @unique
   email            String       @unique
   phone            String       @unique
   password         String
   name             String 
-  photo            String?
+  photo            String?      @unique
   gender           Gender?      @default(MALE)
   isStaff          Boolean      @default(false)
   isAdmin          Boolean      @default(false)
@@ -30,6 +30,8 @@ model User {
   isActive         Boolean      @default(true)
   createdBy        String?
   updatedBy        String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime?    @updatedAt
 
   userRoleId       String?
   userRole         UserRole?    @relation("UserRole", fields: [userRoleId], references: [id]) // Note the ? to make it optional
@@ -72,7 +74,7 @@ model User {
 model Category {
   id              String      @id @default(uuid())
   referenceNumber String      @unique
-  name            String
+  name            String      @unique
   description     String?     @db.Text
   photo           String?
   createdAt       DateTime    @default(now())
@@ -89,35 +91,33 @@ model Category {
 
 // Model Event
 model Event {
-  id              String      @id @default(uuid())
-  referenceNumber String      @unique
-  name            String
-  description     String      @db.Text
-  photo           String
-  date            DateTime
-  startDate       DateTime
-  endDate         DateTime
-  isApproved      Boolean     @default(false)
-  approvedAt      DateTime?
-  createdById     String? 
-  updatedById     String?
-  approvedById    String?
-  ownerId         String
-  categoryId      String
+  id                   String      @id @default(uuid())
+  referenceNumber      String      @unique
+  name                 String
+  description          String      @db.Text
+  photo                String      @unique
+  startDate            DateTime
+  endDate              DateTime
+  isApproved           Boolean     @default(false)
+  approvedAt           DateTime?
+  createdById          String? 
+  updatedById          String?
+  approvedById         String?
+  ownerId              String
+  categoryId           String
 
-  created         User?       @relation("CreatedBy", fields: [createdById], references: [id])
-  updated         User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
-  approved        User?       @relation("ApprovedBy", fields: [approvedById], references: [id])
-  owner           User?       @relation("OwnerId", fields: [ownerId], references: [id])
-  category        Category    @relation("Category", fields: [categoryId], references: [id])
+  created              User?       @relation("CreatedBy", fields: [createdById], references: [id])
+  updated              User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
+  approved             User?       @relation("ApprovedBy", fields: [approvedById], references: [id])
+  owner                User?       @relation("OwnerId", fields: [ownerId], references: [id])
+  category             Category    @relation("Category", fields: [categoryId], references: [id])
 
-  isActive        Boolean     @default(true)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  approvedByAt    DateTime
+  isActive             Boolean     @default(true)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime?   @updatedAt
 
-  workshops       Workshop[]  @relation("Event")
-  masterOfCeremonies       MasterOfCeremony[]  @relation("Event")
+  workshops            Workshop[]  @relation("Event")
+  masterOfCeremonies   MasterOfCeremony[]  @relation("Event")
 }
 
 // Model Workshop
@@ -125,24 +125,23 @@ model Workshop {
   id               String      @id @default(uuid())
   referenceNumber  String      @unique
   name             String
+  eventId          String
   description      String      @db.Text
   room             String
   photo            String
   numberOfPlaces   Int
-  price           Decimal
   isOnlineWorkshop Boolean     @default(false)
-  isApproved       Boolean     @default(false)
-  approvedAt       DateTime?
+  price            Decimal
   startDate        DateTime
   endDate          DateTime
-  isActive         Boolean     @default(true)
+  approvedAt       DateTime?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
-  approvedByAt     DateTime
+  isActive         Boolean     @default(true)
+  isApproved       Boolean     @default(false)
   createdById      String? 
   updatedById      String?
   approvedById     String?
-  eventId          String
   created          User?       @relation("CreatedBy", fields: [createdById], references: [id])
   updated          User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
   approved         User?       @relation("ApprovedBy", fields: [approvedById], references: [id])
@@ -242,7 +241,7 @@ model UserRole {
   id                  String       @id @default(uuid())
   referenceNumber     String       @unique
   name                String       @unique
-  permissions_listing String[]
+  permissionList      String[]
   createdById         String? 
   updatedById         String?
   created             User?        @relation("CreatedBy", fields: [createdById], references: [id])
@@ -257,7 +256,7 @@ model ParticipantRole {
   id                  String           @id @default(uuid())
   referenceNumber     String           @unique
   name                String           @unique
-  permissions_listing String[]
+  permissionList      String[]
   createdById         String? 
   updatedById         String?
   created           User?       @relation("CreatedBy", fields: [createdById], references: [id])
