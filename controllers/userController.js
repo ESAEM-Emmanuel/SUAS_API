@@ -87,7 +87,7 @@ exports.createUser = async (req, res) => {
         isStaff: isStaff || false,
         isOwner: isOwner || false,
         isActive: isActive || true,
-        updatedAt: DateTime.now,
+        updatedAt: DateTime.now().toJSDate(),
       },
     });
 
@@ -288,8 +288,8 @@ exports.updateUser = async (req, res) => {
         isStaff: isStaff !== undefined ? isStaff : false,
         isOwner: isOwner !== undefined ? isOwner : false,
         isActive: isActive !== undefined ? isActive : true,
-        updatedById: req.userId,
-        updatedAt: DateTime.now,
+        approvedById: req.userId,
+        approvedAt: DateTime.now().toJSDate(),
       },
     });
 
@@ -360,8 +360,8 @@ exports.deleteUser = async (req, res) => {
       },
       data: {
         isActive: false,
-        updatedById: req.userId,
-        updatedAt: DateTime.now
+        approvedById: req.userId,
+        approvedAt: DateTime.now().toJSDate(),
       },
     });
 
@@ -410,8 +410,8 @@ exports.restoreUser = async (req, res) => {
       },
       data: {
         isActive: true,
-        updatedById: req.userId,
-        updatedAt: DateTime.now
+        approvedById: req.userId,
+        approvedAt: DateTime.now().toJSDate(),
       },
     });
 

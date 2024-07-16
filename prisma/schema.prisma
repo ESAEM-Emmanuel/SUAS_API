@@ -259,8 +259,8 @@ model ParticipantRole {
   permissionList      String[]
   createdById         String? 
   updatedById         String?
-  created           User?       @relation("CreatedBy", fields: [createdById], references: [id])
-  updated           User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
+  created             User?       @relation("CreatedBy", fields: [createdById], references: [id])
+  updated             User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
   isActive            Boolean      @default(true)
 
   participants         Participant[]      @relation("ParticipantRole")
