@@ -33,6 +33,7 @@ const categoryRoutes = require("./routes/categoryRoutes");
 const eventRoutes = require("./routes/eventRoutes");
 const workshopRoutes = require("./routes/workshopRoutes");
 const participantRoutes = require("./routes/participantRoutes");
+const participantRoleRoutes = require("./routes/participantRoleRoutes");
 
 // app.use("/api", authRoutes); // authRoutes sans middleware
 // app.use("/api/users", verifyToken, userRoutes); // userRoutes avec middleware
@@ -46,7 +47,8 @@ app.use("/api/categories", categoryRoutes);// route des permissions
 app.use("/api/events", eventRoutes);// route des permissions
 app.use("/api/workshops", workshopRoutes);// route des permissions
 app.use("/api/usersroles", userRoleRoutes);// route des permissions
-app.use("/api/participants", participantRoutes);// route des permissions
+// app.use("/api/participants", participantRoutes);// route des permissions
+app.use("/api/participantsroles", participantRoleRoutes);// route des permissions
 app.use("/api/file", fileRoutes); // routes userRoleRoutes
 
 // Middleware pour la gestion des erreurs

@@ -22,8 +22,8 @@ exports.createParticipantRole = async (req, res) => {
 
     // Vérification des contraintes d'unicité
     console.log(participantRoleCreateSerializer.validate(req.body));
-    const existingparticipantRole = await prisma.participantRole.findUnique({ where: { name } });
-    if (existingparticipantRole) {
+    const existingParticipantRole = await prisma.participantRole.findUnique({ where: { name } });
+    if (existingParticipantRole) {
       return res.status(400).json({ error: 'participantRole already exists' });
     }
 

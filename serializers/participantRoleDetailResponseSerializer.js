@@ -14,6 +14,7 @@ const participantRoleDetailResponseSerializer = (participantRole) => ({
       name: participantRole.updated.name,
     } : null,
     isActive: participantRole.isActive,
+    participants: participantRole.participants,
   });
   
   module.exports = participantRoleDetailResponseSerializer;

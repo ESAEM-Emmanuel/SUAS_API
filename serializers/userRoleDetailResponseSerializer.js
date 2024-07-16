@@ -14,6 +14,7 @@ const userRoleDetailResponseSerializer = (userRole) => ({
       name: userRole.updated.name,
     } : null,
     isActive: userRole.isActive,
+    users: userRole.users,
   });
   
   module.exports = userRoleDetailResponseSerializer;
