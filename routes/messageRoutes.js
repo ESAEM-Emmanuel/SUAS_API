@@ -12,7 +12,6 @@ router.get('/', messageController.getMessages);
 router.get('/inactifs', messageController.getMessagesInactifs);
 router.get('/:id', messageController.getMessage);
 router.put('/:id', messageController.updateMessage);
-router.patch('/approved/:id', messageController.approvedMessage);
 router.delete('/:id', messageController.deleteMessage);
 router.patch('/:id', messageController.restoreMessage);
 
