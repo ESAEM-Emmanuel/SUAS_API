@@ -7,6 +7,7 @@ const generateUniqueReferenceNumber = require("../utils/utils");
 const permissionCreateSerializer = require('../serializers/permissionCreateSerializer');
 const permissionResponseSerializer = require('../serializers/permissionResponseSerializer');
 const permissionDetailResponseSerializer = require('../serializers/permissionDetailResponseSerializer');
+const userResponseSerializer = require('../serializers/userResponseSerializer');
 
 // Fonction pour créer un nouvel Permission
 exports.createPermission = async (req, res) => {
@@ -36,6 +37,7 @@ exports.createPermission = async (req, res) => {
         referenceNumber,
         isActive: true,
         createdById: req.userId,
+        createdAt: DateTime.now().toJSDate(),
       },
     });
     // Réponse avec la permission créée
@@ -105,12 +107,22 @@ exports.createPermission = async (req, res) => {
       const permission = await prisma.permission.findUnique({
         where: {
           id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-        }
+        },
+        include: {
+          created: true,
+          updated: true,
+      },
       });
   
       // Vérification de l'existence de la permission
       if (!permission) {
         return res.status(404).json({ error: 'Permission non trouvé' });
+      }
+      if(permission.created){
+        permission.created=userResponseSerializer(permission.created);
+      }
+      if(permission.updated){
+        permission.updated=userResponseSerializer(permission.updated);
       }
   
       // Réponse avec la permission trouvé
@@ -144,6 +156,7 @@ exports.createPermission = async (req, res) => {
         data: {
           name,
           updatedById: req.userId,
+          updatedAt: DateTime.now().toJSDate(),
         },
       });
   
@@ -151,11 +164,21 @@ exports.createPermission = async (req, res) => {
       const permission = await prisma.permission.findUnique({
         where: {
           id: id,
-        }
+        },
+        include: {
+          created: true,
+          updated: true,
+      },
       });
   
       if (!permission) {
         return res.status(404).json({ error: 'Permission non trouvé' });
+      }
+      if(permission.created){
+        permission.created=userResponseSerializer(permission.created);
+      }
+      if(permission.updated){
+        permission.updated=userResponseSerializer(permission.updated);
       }
   
       // Réponse avec la permission trouvé
@@ -191,6 +214,7 @@ exports.createPermission = async (req, res) => {
         data: {
           isActive: false,
           updatedById: req.userId,
+          updatedAt: DateTime.now().toJSDate(),
         },
       });
   
@@ -241,6 +265,7 @@ exports.createPermission = async (req, res) => {
         data: {
           isActive: true,
           updatedById: req.userId,
+          updatedAt: DateTime.now().toJSDate(),
         },
       });
   

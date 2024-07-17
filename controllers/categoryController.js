@@ -7,6 +7,7 @@ const generateUniqueReferenceNumber = require("../utils/utils");
 const categoryCreateSerializer = require('../serializers/categoryCreateSerializer');
 const categoryResponseSerializer = require('../serializers/categoryResponseSerializer');
 const categoryDetailResponseSerializer = require('../serializers/categoryDetailResponseSerializer');
+const userResponseSerializer = require('../serializers/userResponseSerializer');
 
 // Fonction pour créer un nouvel Category
 exports.createCategory = async (req, res) => {
@@ -36,6 +37,7 @@ exports.createCategory = async (req, res) => {
         referenceNumber,
         isActive: true,
         createdById: req.userId,
+        createdAt: DateTime.now().toJSDate(),
       },
     });
     // Réponse avec la Category créée
@@ -117,6 +119,14 @@ exports.createCategory = async (req, res) => {
       if (!category) {
         return res.status(404).json({ error: 'Category non trouvé' });
       }
+      if(category.created){
+        category.created=userResponseSerializer(category.created);
+      }
+      if(category.updated){
+        category.updated=userResponseSerializer(category.updated);
+      }
+      
+      
   
       // Réponse avec la Category trouvé
       return res.status(200).json(categoryDetailResponseSerializer(category));
@@ -149,6 +159,7 @@ exports.createCategory = async (req, res) => {
         data: {
           name,
           updatedById: req.userId,
+          updatedAt: DateTime.now().toJSDate(),
         },
       });
   
@@ -164,8 +175,15 @@ exports.createCategory = async (req, res) => {
         },
       });
   
+      // Vérification de l'existence de la Category
       if (!category) {
         return res.status(404).json({ error: 'Category non trouvé' });
+      }
+      if(category.created){
+        category.created=userResponseSerializer(category.created);
+      }
+      if(category.updated){
+        category.updated=userResponseSerializer(category.updated);
       }
   
       // Réponse avec la Category trouvé
@@ -180,7 +198,7 @@ exports.createCategory = async (req, res) => {
   exports.deleteCategory = async (req, res) => {
     const { id } = req.params;
     // Recherche de l'Category par nom d'Category
-    const user = await prisma.category.findUnique({
+    const category = await prisma.category.findUnique({
       where: {
         id:id,
         isActive:true
@@ -188,7 +206,7 @@ exports.createCategory = async (req, res) => {
     });
 
     // Vérification de l'Category
-    if (!user) {
+    if (!category) {
       return res.status(404).json({ error: 'Category non trouvé' });
     }
   
@@ -201,6 +219,7 @@ exports.createCategory = async (req, res) => {
         data: {
           isActive: false,
           updatedById: req.userId,
+          updatedAt: DateTime.now().toJSDate(),
         },
       });
   
@@ -251,6 +270,7 @@ exports.createCategory = async (req, res) => {
         data: {
           isActive: true,
           updatedById: req.userId,
+          updatedAt: DateTime.now().toJSDate(),
         },
       });
   

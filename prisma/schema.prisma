@@ -155,17 +155,16 @@ model Workshop {
 model MasterOfCeremony {
   id                String      @id @default(uuid())
   referenceNumber   String      @unique
+  name              String?
   description       String      @db.Text
-  startDate         DateTime
-  endDate           DateTime
-  createdById       String?
-  updatedById       String?
   ownerId           String
   eventId           String
+  createdById       String?
+  updatedById       String?
   created           User?       @relation("CreatedBy", fields: [createdById], references: [id])
   updated           User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
   owner             User?       @relation("OwnerId", fields: [ownerId], references: [id])
-  event            Event       @relation("Event", fields: [eventId], references: [id])
+  event             Event       @relation("Event", fields: [eventId], references: [id])
   isActive          Boolean     @default(true)
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
@@ -173,29 +172,28 @@ model MasterOfCeremony {
 
 // Model Participant
 model Participant {
-  id                String      @id @default(uuid())
-  referenceNumber   String      @unique
+  id                String          @id @default(uuid())
+  referenceNumber   String          @unique
+  workshopId        String
   name              String
-  description       String      @db.Text
-  room              String
+  description       String          @db.Text
   participantRoleId String
-  participantRole   ParticipantRole @relation("ParticipantRole", fields: [participantRoleId], references: [id])
-  isOnlineWorkshop  Boolean     @default(false)
-  isApproved        Boolean     @default(false)
+  ownerId           String
+  isOnlineParticipation Boolean     @default(false)
+  isApproved        Boolean         @default(false)
   approvedAt        DateTime?
   createdById       String?
   updatedById       String?
   approvedById      String?
-  workshopId        String
-  ownerId           String
-  created           User?       @relation("CreatedBy", fields: [createdById], references: [id])
-  updated           User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
-  approved          User?      @relation("ApprovedBy", fields: [approvedById], references: [id])
-  owner             User?       @relation("OwnerId", fields: [ownerId], references: [id])
-  workshop          Workshop    @relation("Workshop", fields: [workshopId], references: [id])
-  isActive          Boolean     @default(true)
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  participantRole   ParticipantRole @relation("ParticipantRole", fields: [participantRoleId], references: [id])
+  created           User?           @relation("CreatedBy", fields: [createdById], references: [id])
+  updated           User?           @relation("UpdatedBy", fields: [updatedById], references: [id])
+  approved          User?           @relation("ApprovedBy", fields: [approvedById], references: [id])
+  owner             User?           @relation("OwnerId", fields: [ownerId], references: [id])
+  workshop          Workshop        @relation("Workshop", fields: [workshopId], references: [id])
 
   messages         Message[]      @relation("Participant")
 }
@@ -204,7 +202,7 @@ model Participant {
 model Message {
   id                String      @id @default(uuid())
   referenceNumber   String      @unique
-  content              String
+  content           String
   messageType       MessageType   @default(TEXT)
   workshopId        String
   participantId     String
@@ -257,7 +255,7 @@ model UserRole {
 model ParticipantRole {
   id                  String           @id @default(uuid())
   referenceNumber     String           @unique
-  name                String           @unique
+  name                String
   permissionList      String[]
   createdById         String? 
   updatedById         String?

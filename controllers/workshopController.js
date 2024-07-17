@@ -7,6 +7,7 @@ const generateUniqueReferenceNumber = require("../utils/utils");
 const workshopCreateSerializer = require('../serializers/workshopCreateSerializer');
 const workshopResponseSerializer = require('../serializers/workshopResponseSerializer');
 const workshopDetailResponseSerializer = require('../serializers/workshopDetailResponseSerializer');
+const userResponseSerializer = require('../serializers/userResponseSerializer');
 
 // Fonction pour créer un nouvel workshop
 exports.createWorkshop = async (req, res) => {
@@ -56,7 +57,7 @@ exports.createWorkshop = async (req, res) => {
         referenceNumber,
         isActive: true,
         createdById: req.userId,
-        createdAt: new Date(),
+        createdAt: DateTime.now().toJSDate(),
       },
     });
 
@@ -123,7 +124,7 @@ exports.createWorkshop = async (req, res) => {
     const { id } = req.params;
   
     try {
-      const workshops = await prisma.workshop.findUnique({
+      const workshop = await prisma.workshop.findUnique({
         where: {
           id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
         },
@@ -138,9 +139,25 @@ exports.createWorkshop = async (req, res) => {
       });
   
       // Vérification de l'existence de la workshop
-      if (!workshops) {
+        if (!workshop) {
         return res.status(404).json({ error: 'workshop non trouvé' });
-      }
+        }
+
+        if (!workshop) {
+        return res.status(404).json({ error: 'workshop non trouvé' });
+        }
+        if(workshop.created){
+
+        workshop.created=userResponseSerializer(workshop.created);
+        }
+        if(workshop.updated){
+
+            workshop.updated=userResponseSerializer(workshop.updated);
+        }
+        if(workshop.approved){
+
+            workshop.approved=userResponseSerializer(workshop.approved);
+        }
   
       // Réponse avec la workshop trouvé
       return res.status(200).json(workshopDetailResponseSerializer(workshops));
@@ -207,9 +224,22 @@ exports.createWorkshop = async (req, res) => {
         },
       });
   
-      if (!workshop) {
+        if (!workshop) {
         return res.status(404).json({ error: 'workshop non trouvé' });
-      }
+        }
+        if(workshop.created){
+
+        workshop.created=userResponseSerializer(workshop.created);
+        }
+        if(workshop.updated){
+
+            workshop.updated=userResponseSerializer(workshop.updated);
+        }
+        if(workshop.approved){
+
+            workshop.approved=userResponseSerializer(workshop.approved);
+        }
+        
   
       // Réponse avec la workshop mise à jour
       return res.status(200).json(workshopDetailResponseSerializer(workshop));

@@ -5,15 +5,11 @@ const participantRoleDetailResponseSerializer = (participantRole) => ({
     permissionList: participantRole.permissionList,
     createdAt: participantRole.createdAt,
     updatedAt: participantRole.updatedAt,
-    createdBy: participantRole.created ? {
-      id: participantRole.created.id,
-      name: participantRole.created.name,
-    } : null,
-    updatedBy: participantRole.updated ? {
-      id: participantRole.updated.id,
-      name: participantRole.updated.name,
-    } : null,
+    createdBy: participantRole.createdBy,
+    updatedBy: participantRole.updatedBy,
     isActive: participantRole.isActive,
+    created: participantRole.created,
+    updated: participantRole.updated,
     participants: participantRole.participants,
   });
   

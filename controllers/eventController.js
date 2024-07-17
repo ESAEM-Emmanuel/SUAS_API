@@ -7,6 +7,7 @@ const generateUniqueReferenceNumber = require("../utils/utils");
 const eventCreateSerializer = require('../serializers/eventCreateSerializer');
 const eventResponseSerializer = require('../serializers/eventResponseSerializer');
 const eventDetailResponseSerializer = require('../serializers/eventDetailResponseSerializer');
+const userResponseSerializer = require('../serializers/userResponseSerializer');
 
 // Fonction pour créer un nouvel Event
 exports.createEvent = async (req, res) => {
@@ -45,7 +46,7 @@ exports.createEvent = async (req, res) => {
         referenceNumber,
         isActive: true,
         createdById: req.userId,
-        createdAt: new Date(),
+        createdAt: DateTime.now().toJSDate(),
       },
     });
 
@@ -112,7 +113,7 @@ exports.createEvent = async (req, res) => {
     const { id } = req.params;
   
     try {
-      const events = await prisma.event.findUnique({
+      const event = await prisma.event.findUnique({
         where: {
           id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
         },
@@ -128,8 +129,20 @@ exports.createEvent = async (req, res) => {
       });
   
       // Vérification de l'existence de la Event
-      if (!events) {
+      if (!event) {
         return res.status(404).json({ error: 'Event non trouvé' });
+      }
+      if(event.created){
+        event.created=userResponseSerializer(event.created);
+      }
+      if(event.updated){
+        event.updated=userResponseSerializer(event.updated);
+      }
+      if(event.approved){
+        event.approved=userResponseSerializer(event.approved);
+      }
+      if(event.owner){
+        event.owner=userResponseSerializer(event.owner);
       }
   
       // Réponse avec la Event trouvé
@@ -196,6 +209,18 @@ exports.createEvent = async (req, res) => {
   
       if (!event) {
         return res.status(404).json({ error: 'Event non trouvé' });
+      }
+      if(event.created){
+        event.created=userResponseSerializer(event.created);
+      }
+      if(event.updated){
+        event.updated=userResponseSerializer(event.updated);
+      }
+      if(event.approved){
+        event.approved=userResponseSerializer(event.approved);
+      }
+      if(event.owner){
+        event.owner=userResponseSerializer(event.owner);
       }
   
       // Réponse avec la Event mise à jour

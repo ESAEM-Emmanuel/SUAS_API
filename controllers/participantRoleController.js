@@ -7,6 +7,7 @@ const generateUniqueReferenceNumber = require("../utils/utils");
 const participantRoleCreateSerializer = require('../serializers/participantRoleCreateSerializer');
 const participantRoleResponseSerializer = require('../serializers/participantRoleResponseSerializer');
 const participantRoleDetailResponseSerializer = require('../serializers/participantRoleDetailResponseSerializer');
+const userResponseSerializer = require('../serializers/userResponseSerializer');
 
 // Fonction pour créer un nouvel participantRole
 exports.createParticipantRole = async (req, res) => {
@@ -38,7 +39,8 @@ exports.createParticipantRole = async (req, res) => {
         permissionList,
         referenceNumber,
         isActive: true,
-        createdById: req.participantId,
+        createdById: req.userId,
+        createdAt: DateTime.now().toJSDate(),
       },
     });
     // Réponse avec la participantRole créée
@@ -105,12 +107,26 @@ exports.createParticipantRole = async (req, res) => {
       const participantRole = await prisma.participantRole.findUnique({
         where: {
           id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-        }
+        },
+        include: {
+          created: true,
+          updated: true,
+          participants: true,
+      },
       });
   
       // Vérification de l'existence de la participantRole
       if (!participantRole) {
         return res.status(404).json({ error: 'participantRole non trouvé' });
+      }
+      if(participantRole.created){
+        participantRole.created=userResponseSerializer(participantRole.created);
+      }
+      if(participantRole.updated){
+        participantRole.updated=userResponseSerializer(participantRole.updated);
+      }
+      if(participantRole.participants){
+        participantRole.participants=userResponseSerializer(participantRole.participants);
       }
   
       // Réponse avec la participantRole trouvé
@@ -147,7 +163,8 @@ exports.updateParticipantRole = async (req, res) => {
       data: {
         name,
         permissionList,
-        updatedById: req.participantId,
+        updatedById: req.userId,
+        updatedAt: DateTime.now().toJSDate(),
       },
     });
 
@@ -155,11 +172,26 @@ exports.updateParticipantRole = async (req, res) => {
     const participantRole = await prisma.participantRole.findUnique({
       where: {
         id: id,
-      }
+      },
+      include: {
+        created: true,
+        updated: true,
+        participants: true,
+    },
     });
 
+    // Vérification de l'existence de la participantRole
     if (!participantRole) {
       return res.status(404).json({ error: 'participantRole non trouvé' });
+    }
+    if(participantRole.created){
+      participantRole.created=userResponseSerializer(participantRole.created);
+    }
+    if(participantRole.updated){
+      participantRole.updated=userResponseSerializer(participantRole.updated);
+    }
+    if(participantRole.participants){
+      participantRole.participants=userResponseSerializer(participantRole.participants);
     }
 
     // Réponse avec la participantRole trouvé
@@ -182,7 +214,8 @@ exports.updateParticipantRole = async (req, res) => {
         },
         data: {
           isActive: false,
-          updatedById: req.participantId,
+          updatedById: req.userId,
+          updatedAt: DateTime.now().toJSDate(),
         },
       });
   
@@ -219,7 +252,8 @@ exports.updateParticipantRole = async (req, res) => {
         },
         data: {
           isActive: true,
-          updatedById: req.participantId,
+          updatedById: req.userId,
+          updatedAt: DateTime.now().toJSDate(),
         },
       });
   

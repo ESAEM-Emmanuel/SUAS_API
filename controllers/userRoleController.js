@@ -7,6 +7,7 @@ const generateUniqueReferenceNumber = require("../utils/utils");
 const userRoleCreateSerializer = require('../serializers/userRoleCreateSerializer');
 const userRoleResponseSerializer = require('../serializers/userRoleResponseSerializer');
 const userRoleDetailResponseSerializer = require('../serializers/userRoleDetailResponseSerializer');
+const userResponseSerializer = require('../serializers/userResponseSerializer');
 
 // Fonction pour créer un nouvel userRole
 exports.createUserRole = async (req, res) => {
@@ -105,13 +106,28 @@ exports.createUserRole = async (req, res) => {
       const userRole = await prisma.userRole.findUnique({
         where: {
           id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-        }
+        },
+        include: {
+          created: true,
+          updated: true,
+          users: true,
+      },
       });
   
       // Vérification de l'existence de la userRole
       if (!userRole) {
         return res.status(404).json({ error: 'userRole non trouvé' });
       }
+      if(userRole.created){
+        userRole.created=userResponseSerializer(userRole.created);
+      }
+      if(userRole.updated){
+        userRole.updated=userResponseSerializer(userRole.updated);
+      }
+      if(userRole.users){
+        userRole.users=userResponseSerializer(userRole.users);
+      }
+      
   
       // Réponse avec la userRole trouvé
       return res.status(200).json(userRoleDetailResponseSerializer(userRole));
@@ -148,6 +164,7 @@ exports.updateUserRole = async (req, res) => {
         name,
         permissionList,
         updatedById: req.userId,
+        updatedAt: DateTime.now().toJSDate(),
       },
     });
 
@@ -155,11 +172,25 @@ exports.updateUserRole = async (req, res) => {
     const userRole = await prisma.userRole.findUnique({
       where: {
         id: id,
-      }
+      },
+      include: {
+        created: true,
+        updated: true,
+        users: true,
+    },
     });
 
     if (!userRole) {
       return res.status(404).json({ error: 'userRole non trouvé' });
+    }
+    if(userRole.created){
+      userRole.created=userResponseSerializer(userRole.created);
+    }
+    if(userRole.updated){
+      userRole.updated=userResponseSerializer(userRole.updated);
+    }
+    if(userRole.users){
+      userRole.users=userResponseSerializer(userRole.users);
     }
 
     // Réponse avec la userRole trouvé
@@ -183,6 +214,7 @@ exports.updateUserRole = async (req, res) => {
         data: {
           isActive: false,
           updatedById: req.userId,
+          updatedAt: DateTime.now().toJSDate(),
         },
       });
   
@@ -220,6 +252,7 @@ exports.updateUserRole = async (req, res) => {
         data: {
           isActive: true,
           updatedById: req.userId,
+          updatedAt: DateTime.now().toJSDate(),
         },
       });
   

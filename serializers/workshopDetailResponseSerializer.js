@@ -9,7 +9,6 @@ const workshopDetailResponseSerializer = (workshop) => ({
     numberOfPlaces: workshop.numberOfPlaces,
     price: workshop.price,
     isOnlineWorkshop: workshop.isOnlineWorkshop,
-    isApproved: workshop.isApproved,
     startDate: workshop.startDate,
     endDate: workshop.endDate,
     isActive: workshop.isActive,
@@ -17,7 +16,6 @@ const workshopDetailResponseSerializer = (workshop) => ({
     createdAt: workshop.createdAt,
     updatedAt: workshop.updatedAt,
     isApproved: workshop.isApproved,
-    approvedAt: workshop.approvedAt,
     approvedAt: workshop.approvedAt,
     createdById: workshop.createdById,
     updatedById: workshop.updatedById,
@@ -27,7 +25,6 @@ const workshopDetailResponseSerializer = (workshop) => ({
     updated: workshop.updated,
     approved: workshop.approved,
     event: workshop.event,
-    
     participants: workshop.participants,
     messages: workshop.messages,
   });

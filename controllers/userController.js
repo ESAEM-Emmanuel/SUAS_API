@@ -87,6 +87,7 @@ exports.createUser = async (req, res) => {
         isStaff: isStaff || false,
         isOwner: isOwner || false,
         isActive: isActive || true,
+        createdById: req.userId,
         createdAt: DateTime.now().toJSDate(),
       },
     });
@@ -102,73 +103,6 @@ exports.createUser = async (req, res) => {
   }
 };
 
-// Fonction pour gérer la connexion d'un utilisateur
-// exports.login = async (req, res) => {
-//   const { username, password } = req.body;
-
-//   try {
-//     // Recherche de l'utilisateur par nom d'utilisateur
-//     const user = await prisma.user.findUnique({
-//       where: {
-//         username,
-//       },
-//     });
-
-//     // Vérification de l'utilisateur
-//     if (!user) {
-//       return res.status(404).json({ error: 'Utilisateur non trouvé' });
-//     }
-
-//     // Vérification du mot de passe
-//     const passwordMatch = await bcrypt.compare(password, user.password);
-//     if (!passwordMatch) {
-//       return res.status(401).json({ error: 'Mot de passe incorrect' });
-//     }
-
-//     // Création du token JWT
-//     const token = jwt.sign(
-//       { userId: user.id, username: user.username },
-//       process.env.JWT_SECRET,
-//       { expiresIn: '1h' }
-//     );
-//     try {
-//       const current_user = await prisma.user.findUnique({
-//         where: {
-//           id: user.id, // Assurez-vous que l'ID est utilisé tel quel (string)
-//         },
-//         include: {
-//           userRole: true,
-//           categoriesCreated: true,
-//           categoriesUpdated: true,
-//           eventsCreated: true,
-//           eventsUpdated: true,
-//           eventsApprovedBy: true,
-//           eventsOwner: true,
-//           workshopsCreatedBy: true,
-//           workshopsUpdatedBy: true,
-//           workshopsApprovedBy: true,
-//           participantsCreated: true,
-//           participantsUpdated: true,
-//           participantsApprovedBy: true,
-//           participantsOwner: true,
-//           messagesCreated: true,
-//           messagesUpdated: true,
-//           permissionsCreated: true,
-//           permissionsUpdated: true,
-//           userRolesCreated: true,
-//           userRolesUpdated: true,
-//           participantRolesCreated: true,
-//           participantRolesUpdated: true,
-//         },
-//       });
-
-//     // Réponse avec le token JWT
-//     return res.status(200).json({ token, current_user});
-//   } catch (error) {
-//     console.error('Erreur lors de la connexion de l\'utilisateur :', error);
-//     return res.status(500).json({ error: 'Erreur interne du serveur' });
-//   }
-// };
 exports.login = async (req, res) => {
   const { username, password } = req.body;
 
