@@ -203,6 +203,7 @@ model Message {
   id                String      @id @default(uuid())
   referenceNumber   String      @unique
   content           String
+  urlFile           String?
   messageType       MessageType   @default(TEXT)
   workshopId        String
   participantId     String
