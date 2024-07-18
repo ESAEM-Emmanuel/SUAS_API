@@ -195,7 +195,7 @@ model Participant {
   owner             User?           @relation("OwnerId", fields: [ownerId], references: [id])
   workshop          Workshop        @relation("Workshop", fields: [workshopId], references: [id])
 
-  messages         Message[]      @relation("Participant")
+  messages         Message[]        @relation("Participant")
 }
 
 // Model Message

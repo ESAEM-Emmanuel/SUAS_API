@@ -15,6 +15,7 @@ exports.createMessage = async (req, res) => {
   const { 
     workshopId,
     content,
+    urlFile,
     messageType,
     participantId } = req.body;
 
@@ -47,6 +48,7 @@ exports.createMessage = async (req, res) => {
         content,
         messageType,
         participantId,
+        urlFile : urlFile || null,
         referenceNumber,
         isActive: true,
         createdById: req.userId,
@@ -122,13 +124,10 @@ exports.createMessage = async (req, res) => {
           id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
         },
         include: {
-            messageRole: true,
             created: true,
             updated: true,
-            approved: true,
-            owner: true,
             workshop: true,
-            messages: true,
+            participant: true,
         },
       });
   
@@ -144,14 +143,6 @@ exports.createMessage = async (req, res) => {
 
           message.updated=userResponseSerializer(message.updated);
       }
-      if(message.approved){
-
-          message.approved=userResponseSerializer(message.approved);
-      }
-      if(message.owner){
-
-          message.owner=userResponseSerializer(message.owner);
-      }
   
       // Réponse avec la message trouvé
       return res.status(200).json(messageDetailResponseSerializer(message));
@@ -165,15 +156,11 @@ exports.createMessage = async (req, res) => {
   exports.updateMessage = async (req, res) => {
     const { id } = req.params;
     const {
-        eventId,
-        name,
-        photo,
-        description,
-        room,
-        numberOfPlaces,
-        price,
-        startDate,
-        endDate,
+        workshopId,
+        content,
+        urlFile,
+        messageType,
+        participantId 
     } = req.body;
   
     try {
@@ -189,33 +176,26 @@ exports.createMessage = async (req, res) => {
           id: id,
         },
         data: {
-            eventId,
-            name,
-            photo,
-            description,
-            room,
-            numberOfPlaces,
-            price,
-            startDate: new Date(startDate),
-            endDate: new Date(endDate),
+            workshopId,
+            content,
+            messageType,
+            participantId,
+            urlFile : urlFile || null,
             updatedById: req.userId,
             updatedAt: DateTime.now().toJSDate(), // Utilisez DateTime.now().toJSDate() pour obtenir une date sérialisable
-        },
-        include: {
-            messageRole: true,
-            created: true,
-            updated: true,
-            approved: true,
-            owner: true,
-            workshop: true,
-            messages: true,
-        },
+        }
       });
   
       // Récupération de la message mise à jour
       const message = await prisma.message.findUnique({
         where: {
           id: id,
+        },
+        include: {
+            created: true,
+            updated: true,
+            workshop: true,
+            participant: true,
         },
       });
   
@@ -230,15 +210,6 @@ exports.createMessage = async (req, res) => {
 
             message.updated=userResponseSerializer(message.updated);
         }
-        if(message.approved){
-
-            message.approved=userResponseSerializer(message.approved);
-        }
-        if(message.owner){
-
-            message.owner=userResponseSerializer(message.owner);
-        }
-      
       // Réponse avec la message mise à jour
       return res.status(200).json(messageDetailResponseSerializer(message));
     } catch (error) {

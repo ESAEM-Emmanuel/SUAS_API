@@ -15,7 +15,7 @@ const messageDetailResponseSerializer = (message) => ({
     created: message.created,
     updated: message.updated,
     workshop: message.workshop,
-    workshop: message.workshop,
+    participant: message.participant,
   });
   
   module.exports = messageDetailResponseSerializer;
