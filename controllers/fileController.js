@@ -20,28 +20,54 @@ const storage = multer.diskStorage({
 // exports.upload = multer({ dest: 'uploads/' });
 exports.upload = multer({ storage });
 
+// exports.uploadFile = (req, res) => {
+//   console.log("uploadFile");
+//     try {
+//       if (!req.files || Object.keys(req.files).length === 0) {
+//         return res.status(400).json({ message: 'No files uploaded.' });
+//       }
+  
+//       const uploadedFiles = req.files.map((file) => {
+//         const filePath = path.join(__dirname, '..', 'uploads', file.filename);
+//         console.log(file)
+//         return {
+//           filename: file.filename,
+//           filePath,
+//           url: `http://${process.env.ADDRESS}:${process.env.PORT}/file/download/${path.basename(filePath)}`,
+//         };
+//       });
+  
+//       return res.send(uploadedFiles );
+//     } catch (error) {
+//       console.error('Error uploading files:', error);
+//       res.status(500).json({ message: 'Error uploading files.' });
+//     }
+// };
+
 exports.uploadFile = (req, res) => {
-    try {
+  console.log("uploadFile");
+  try {
       if (!req.files || Object.keys(req.files).length === 0) {
-        return res.status(400).json({ message: 'No files uploaded.' });
+          return res.status(400).json({ message: 'No files uploaded.' });
       }
-  
+
       const uploadedFiles = req.files.map((file) => {
-        const filePath = path.join(__dirname, '..', 'uploads', file.filename);
-        console.log(file)
-        return {
-          filename: file.filename,
-          filePath,
-          url: `http://${process.env.ADDRESS}:${process.env.PORT}/file/download/${path.basename(filePath)}`,
-        };
+          const filePath = path.join(__dirname, '..', 'uploads', file.filename);
+          console.log(file); // Ajoutez cette ligne pour vérifier les fichiers uploadés
+          return {
+              filename: file.filename,
+              filePath,
+              url: `http://${process.env.ADDRESS}:${process.env.PORT}/api/files/download/${path.basename(filePath)}`,
+          };
       });
-  
-      return res.send(uploadedFiles );
-    } catch (error) {
+
+      return res.send(uploadedFiles);
+  } catch (error) {
       console.error('Error uploading files:', error);
       res.status(500).json({ message: 'Error uploading files.' });
-    }
+  }
 };
+
   
   exports.toExcel=async(req, res)=>{
   const { data, headings } = req.body;
@@ -79,20 +105,38 @@ exports.uploadFile = (req, res) => {
     res.json({ fileUrl: `http://${process.env.ADDRESS}:${process.env.PORT}/file/download/${path.basename(filePath)}` });
 }
 
-exports.download=async (req, res)=>{
-    const filename = req.params.filename;   
-    console.log(filename);
-    const filePath = path.join('C:\\Users\\belombo\\Documents\\DPWS project\\ENTITY_USER_API\\', 'uploads', filename);
-    console.log(filePath);
+// exports.download=async (req, res)=>{
+//     const filename = req.params.filename;   
+//     console.log(filename);
+//     const filePath = path.join('C:\\Users\\belombo\\Documents\\DPWS project\\ENTITY_USER_API\\', 'uploads', filename);
+//     console.log(filePath);
 
-    if (fs.existsSync(filePath)) {
-        res.download(filePath, err => {
-            if (err) {
-                console.error('File download error:', err);
-                res.status(500).send('File download error.');
-            }
-        });
-    } else {
-        res.status(404).send('File not found.');
-    }
-}
+//     if (fs.existsSync(filePath)) {
+//         res.download(filePath, err => {
+//             if (err) {
+//                 console.error('File download error:', err);
+//                 res.status(500).send('File download error.');
+//             }
+//         });
+//     } else {
+//         res.status(404).send('File not found.');
+//     }
+// }
+
+exports.download = async (req, res) => {
+  const filename = req.params.filename;   
+  console.log(filename);
+  const filePath = path.join(__dirname, '..', 'uploads', filename); // Correction ici pour garantir que le chemin est correct
+  console.log(filePath);
+
+  if (fs.existsSync(filePath)) {
+      res.download(filePath, err => {
+          if (err) {
+              console.error('File download error:', err);
+              res.status(500).send('File download error.');
+          }
+      });
+  } else {
+      res.status(404).send('File not found.');
+  }
+};

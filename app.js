@@ -53,7 +53,7 @@ app.use("/api/usersroles", userRoleRoutes);// route des permissions
 app.use("/api/participants", participantRoutes);// route des permissions
 app.use("/api/messages", messageRoutes);// route des permissions
 app.use("/api/participantsroles", participantRoleRoutes);// route des permissions
-app.use("/api/file", fileRoutes); // routes userRoleRoutes
+app.use("/api/files", fileRoutes); // routes userRoleRoutes
 
 // Middleware pour la gestion des erreurs
 app.use((err, req, res, next) => {
