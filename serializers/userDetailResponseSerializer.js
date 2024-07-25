@@ -5,6 +5,7 @@ const userDetailResponseSerializer = (user) => ({
     email: user.email,
     phone: user.phone,
     name: user.name,
+    surname: user.surname,
     photo: user.photo,
     gender: user.gender,
     isStaff: user.isStaff,

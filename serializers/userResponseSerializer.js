@@ -5,6 +5,7 @@ const userResponseSerializer = (user) => ({
     email: user.email,
     phone: user.phone,
     name: user.name,
+    surname: user.surname,
     photo: user.photo,
     gender: user.gender,
     userRoleId: user.userRoleId,
