@@ -21,7 +21,8 @@ exports.createWorkshop = async (req, res) => {
     numberOfPlaces,
     price,
     startDate,
-    endDate } = req.body;
+    endDate,
+    isPublic, } = req.body;
 
   try {
     // Validation des données d'entrée
@@ -56,6 +57,7 @@ exports.createWorkshop = async (req, res) => {
         endDate: new Date(endDate),
         referenceNumber,
         isActive: true,
+        isPublic:isPublic|| false,
         createdById: req.userId,
         createdAt: DateTime.now().toJSDate(),
       },
@@ -180,6 +182,7 @@ exports.createWorkshop = async (req, res) => {
         price,
         startDate,
         endDate,
+        isPublic,
     } = req.body;
   
     try {
@@ -204,6 +207,7 @@ exports.createWorkshop = async (req, res) => {
             price,
             startDate: new Date(startDate),
             endDate: new Date(endDate),
+            isPublic:isPublic|| false,
             updatedById: req.userId,
             updatedAt: DateTime.now().toJSDate(), // Utilisez DateTime.now().toJSDate() pour obtenir une date sérialisable
         },

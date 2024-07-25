@@ -9,12 +9,15 @@ const eventResponseSerializer = (event) => ({
     endDate: event.endDate,
     ownerId: event.ownerId,
     isApproved: event.isApproved,
+    isPublic: event.isPublic,
     createdAt: event.createdAt,
     updatedAt: event.updatedAt,
     approvedAt: event.approvedAt,
     createdBy: event.createdBy,
     updatedBy: event.updatedBy,
-    approvedById: event.approvedById
+    approvedById: event.approvedById,
+
+    workshops: event.workshops,
   });
   
   module.exports = eventResponseSerializer;

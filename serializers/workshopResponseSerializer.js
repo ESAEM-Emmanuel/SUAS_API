@@ -16,6 +16,7 @@ const workshopResponseSerializer = (workshop) => ({
     createdAt: workshop.createdAt,
     updatedAt: workshop.updatedAt,
     isApproved: workshop.isApproved,
+    isPublic: workshop.isPublic,
     approvedAt: workshop.approvedAt,
     createdById: workshop.createdById,
     updatedById: workshop.updatedById,

@@ -9,6 +9,7 @@ const eventDetailResponseSerializer = (event) => ({
     endDate: event.endDate,
     ownerId: event.ownerId,
     isApproved: event.isApproved,
+    isPublic: event.isPublic,
     createdAt: event.createdAt,
     updatedAt: event.updatedAt,
     approvedAt: event.approvedAt,

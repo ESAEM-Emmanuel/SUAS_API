@@ -99,6 +99,7 @@ model Event {
   startDate            DateTime
   endDate              DateTime
   isApproved           Boolean     @default(false)
+  isPublic             Boolean     @default(false)
   approvedAt           DateTime?
   createdById          String? 
   updatedById          String?
@@ -139,6 +140,7 @@ model Workshop {
   updatedAt        DateTime    @updatedAt
   isActive         Boolean     @default(true)
   isApproved       Boolean     @default(false)
+  isPublic         Boolean     @default(false)
   createdById      String? 
   updatedById      String?
   approvedById     String?

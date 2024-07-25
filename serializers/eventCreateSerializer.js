@@ -8,6 +8,7 @@ const eventCreateSerializer = Joi.object({
     startDate:Joi.date().required(),
     endDate:Joi.date().required(),
     ownerId:Joi.string().required(),
+    isPublic: Joi.boolean().optional(),
 });
 
 module.exports = eventCreateSerializer;

@@ -12,7 +12,7 @@ const userResponseSerializer = require('../serializers/userResponseSerializer');
 // Fonction pour créer un nouvel Event
 exports.createEvent = async (req, res) => {
   // Extraction des données de la requête
-  const { categoryId, name, photo, description, startDate, endDate, ownerId } = req.body;
+  const { categoryId, name, photo, description, startDate, endDate, ownerId, isPublic } = req.body;
 
   try {
     // Validation des données d'entrée
@@ -45,6 +45,7 @@ exports.createEvent = async (req, res) => {
         ownerId,
         referenceNumber,
         isActive: true,
+        isPublic:isPublic|| false,
         createdById: req.userId,
         createdAt: DateTime.now().toJSDate(),
       },
@@ -74,6 +75,9 @@ exports.createEvent = async (req, res) => {
         orderBy: {
           name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
         },
+        include: {
+          workshops: true,
+        }
       });
   
       const formatedEvents = events.map(eventResponseSerializer);
@@ -97,6 +101,9 @@ exports.createEvent = async (req, res) => {
         orderBy: {
           name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
         },
+        include: {
+          workshops: true,
+        }
       });
   
       const formatedEvents = events.map(eventResponseSerializer);
@@ -186,6 +193,7 @@ exports.createEvent = async (req, res) => {
           startDate,
           endDate,
           ownerId,
+          isPublic:isPublic|| false,
           updatedById: req.userId,
           updatedAt: DateTime.now().toJSDate(), // Utilisez DateTime.now().toJSDate() pour obtenir une date sérialisable
         },
