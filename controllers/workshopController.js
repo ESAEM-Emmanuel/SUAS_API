@@ -42,6 +42,13 @@ exports.createWorkshop = async (req, res) => {
     // Génération du numéro de référence unique
     const referenceNumber = await generateUniqueReferenceNumber(prisma.workshop);
     console.log(referenceNumber);
+    
+    // S'assurer que startDate et endDate ne contiennent que la date (sans heure)
+    const formattedStartDate = new Date(startDate);
+    formattedStartDate.setHours(0, 0, 0, 0);
+
+    const formattedEndDate = new Date(endDate);
+    formattedEndDate.setHours(0, 0, 0, 0);
 
     // Création de l'événement avec Prisma
     const newworkshop = await prisma.workshop.create({
@@ -53,8 +60,8 @@ exports.createWorkshop = async (req, res) => {
         room,
         numberOfPlaces,
         price,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate: formattedStartDate,
+        endDate: formattedEndDate,
         referenceNumber,
         isActive: true,
         isPublic:isPublic|| false,
@@ -191,6 +198,13 @@ exports.createWorkshop = async (req, res) => {
       if (error) {
         return res.status(400).json({ error: error.details[0].message });
       }
+
+      // S'assurer que startDate et endDate ne contiennent que la date (sans heure)
+      const formattedStartDate = new Date(startDate);
+      formattedStartDate.setHours(0, 0, 0, 0);
+
+      const formattedEndDate = new Date(endDate);
+      formattedEndDate.setHours(0, 0, 0, 0);
   
       // Mise à jour de la workshop
       const updatedworkshop = await prisma.workshop.update({
@@ -205,8 +219,8 @@ exports.createWorkshop = async (req, res) => {
             room,
             numberOfPlaces,
             price,
-            startDate: new Date(startDate),
-            endDate: new Date(endDate),
+            startDate: formattedStartDate,
+            endDate: formattedEndDate,
             isPublic:isPublic|| false,
             updatedById: req.userId,
             updatedAt: DateTime.now().toJSDate(), // Utilisez DateTime.now().toJSDate() pour obtenir une date sérialisable

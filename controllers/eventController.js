@@ -33,6 +33,13 @@ exports.createEvent = async (req, res) => {
     const referenceNumber = await generateUniqueReferenceNumber(prisma.event);
     console.log(referenceNumber);
 
+    // S'assurer que startDate et endDate ne contiennent que la date (sans heure)
+    const formattedStartDate = new Date(startDate);
+    formattedStartDate.setHours(0, 0, 0, 0);
+
+    const formattedEndDate = new Date(endDate);
+    formattedEndDate.setHours(0, 0, 0, 0);
+
     // Création de l'événement avec Prisma
     const newEvent = await prisma.event.create({
       data: {
@@ -40,8 +47,8 @@ exports.createEvent = async (req, res) => {
         name,
         photo,
         description,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate: formattedStartDate,
+        endDate: formattedEndDate,
         ownerId,
         referenceNumber,
         isActive: true,
@@ -179,6 +186,13 @@ exports.createEvent = async (req, res) => {
       if (error) {
         return res.status(400).json({ error: error.details[0].message });
       }
+
+      // S'assurer que startDate et endDate ne contiennent que la date (sans heure)
+      const formattedStartDate = new Date(startDate);
+      formattedStartDate.setHours(0, 0, 0, 0);
+
+      const formattedEndDate = new Date(endDate);
+      formattedEndDate.setHours(0, 0, 0, 0);
   
       // Mise à jour de la Event
       const updatedEvent = await prisma.event.update({
@@ -190,8 +204,8 @@ exports.createEvent = async (req, res) => {
           name,
           photo,
           description,
-          startDate,
-          endDate,
+          startDate: formattedStartDate,
+          endDate: formattedEndDate,
           ownerId,
           isPublic:isPublic|| false,
           updatedById: req.userId,
