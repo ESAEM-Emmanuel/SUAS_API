@@ -49,6 +49,27 @@ exports.createWorkshop = async (req, res) => {
 
     const formattedEndDate = new Date(endDate);
     formattedEndDate.setHours(0, 0, 0, 0);
+    const event = await prisma.event.findUnique({
+      where: {
+        id: eventId, // Assurez-vous que l'ID est utilisé tel quel (string)
+      }
+    })
+    if (!event) {
+      return res.status(404).json({ error: 'Event non trouvé' });
+    }
+    
+    eventStartDate =event.startDate ;
+    eventStartDate =event.endDate ;
+    // Vérifier si les dates sont comprises entre event_start_date et event_end_date
+    if (formattedStartDate < eventStartDate || formattedStartDate > eventEndDate || 
+      formattedEndDate < eventStartDate || formattedEndDate > eventEndDate) {
+      return res.status(400).json({ error: 'Event dates must be within the allowed event period' });
+    }
+
+    // Comparer les dates
+    if (formattedEndDate < formattedStartDate) {
+      return res.status(400).json({ error: 'End date must be after start date' });
+    }
 
     // Création de l'événement avec Prisma
     const newworkshop = await prisma.workshop.create({
@@ -205,6 +226,28 @@ exports.createWorkshop = async (req, res) => {
 
       const formattedEndDate = new Date(endDate);
       formattedEndDate.setHours(0, 0, 0, 0);
+
+      const event = await prisma.event.findUnique({
+        where: {
+          id: eventId, // Assurez-vous que l'ID est utilisé tel quel (string)
+        }
+      })
+      if (!event) {
+        return res.status(404).json({ error: 'Event non trouvé' });
+      }
+      
+      eventStartDate =event.startDate ;
+      eventStartDate =event.endDate ;
+      // Vérifier si les dates sont comprises entre event_start_date et event_end_date
+      if (formattedStartDate < eventStartDate || formattedStartDate > eventEndDate || 
+        formattedEndDate < eventStartDate || formattedEndDate > eventEndDate) {
+        return res.status(400).json({ error: 'Event dates must be within the allowed event period' });
+      }
+
+      // Comparer les dates
+      if (formattedEndDate < formattedStartDate) {
+        return res.status(400).json({ error: 'End date must be after start date' });
+      }
   
       // Mise à jour de la workshop
       const updatedworkshop = await prisma.workshop.update({

@@ -40,6 +40,11 @@ exports.createEvent = async (req, res) => {
     const formattedEndDate = new Date(endDate);
     formattedEndDate.setHours(0, 0, 0, 0);
 
+    // Comparer les dates
+    if (formattedEndDate < formattedStartDate) {
+      return res.status(400).json({ error: 'End date must be after start date' });
+    }
+
     // Création de l'événement avec Prisma
     const newEvent = await prisma.event.create({
       data: {
@@ -193,6 +198,11 @@ exports.createEvent = async (req, res) => {
 
       const formattedEndDate = new Date(endDate);
       formattedEndDate.setHours(0, 0, 0, 0);
+
+      // Comparer les dates
+      if (formattedEndDate < formattedStartDate) {
+        return res.status(400).json({ error: 'End date must be after start date' });
+      }
   
       // Mise à jour de la Event
       const updatedEvent = await prisma.event.update({
