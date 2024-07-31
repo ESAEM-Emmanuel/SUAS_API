@@ -14,7 +14,7 @@ router.get('/inactifs', eventController.getEventsInactifs);
 router.get('/', eventController.getEvents);
 router.get('/:id', eventController.getEvent);
 router.put('/:id', eventController.updateEvent);
-router.delete('/approved/:id', eventController.approvedEvent);
+router.patch('/approved/:id', eventController.approvedEvent);
 router.delete('/:id', eventController.deleteEvent);
 router.patch('/:id', eventController.restoreEvent);
 
