@@ -12,6 +12,7 @@ router.use(verifyToken);
 router.post('/create', eventController.createEvent);
 router.get('/inactifs', eventController.getEventsInactifs);
 router.get('/', eventController.getEvents);
+router.get('/owner/:id', eventController.getEventsByOwner);
 router.get('/:id', eventController.getEvent);
 router.put('/:id', eventController.updateEvent);
 router.patch('/approved/:id', eventController.approvedEvent);

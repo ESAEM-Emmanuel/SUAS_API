@@ -17,6 +17,9 @@ const eventResponseSerializer = (event) => ({
     updatedBy: event.updatedBy,
     approvedById: event.approvedById,
 
+    owner: event.owner,
+    category: event.category,
+    masterOfCeremonies: event.masterOfCeremonies,
     workshops: event.workshops,
   });
   

@@ -74,11 +74,21 @@ exports.createEvent = async (req, res) => {
   
   
   // Fonction pour récupérer tous les Events avec pagination
-  exports.getEvents = async (req, res) => {
+  exports.getEventsByOwner = async (req, res) => {
     const { page = 1, limit = 100 } = req.query;
+    const { id } = req.params;
   
     try {
       const events = await prisma.event.findMany({
+        where: {
+          owner: id, // Assurez-vous que l'ID est utilisé tel quel (string)
+        },
+        include: {
+          workshops: true,
+          category: true,
+          owner: true,
+          masterOfCeremonies: true,
+        },
         skip: (page - 1) * limit,
         take: parseInt(limit),
         where: {
@@ -86,52 +96,115 @@ exports.createEvent = async (req, res) => {
         },
         orderBy: {
           name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
-        },
-        include: {
-          workshops: true,
         }
       });
   
-      const formatedEvents = events.map(eventResponseSerializer);
-      return res.status(200).json(formatedEvents);
+      // Formater les objets imbriqués
+      const formattedEvents = events.map(event => {
+        if (event.owner) {
+          event.owner = userResponseSerializer(event.owner);
+        }
+        if (event.masterOfCeremonies) {
+          event.masterOfCeremonies = event.masterOfCeremonies.map(mc => userResponseSerializer(mc));
+        }
+        return eventResponseSerializer(event);
+      });
+
+      return res.status(200).json(formattedEvents);
     } catch (error) {
       console.error('Erreur lors de la récupération des Events :', error);
       return res.status(500).json({ error: 'Erreur interne du serveur' });
     }
   };
+  
+  
   // Fonction pour récupérer tous les Events avec pagination
-  exports.getEventsInactifs = async (req, res) => {
-    const { page = 1, limit = 100 } = req.query;
-  
-    try {
-      const events = await prisma.event.findMany({
-        skip: (page - 1) * limit,
-        take: parseInt(limit),
-        where: {
-          isActive: false,
-        },
-        orderBy: {
-          name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
-        },
-        include: {
-          workshops: true,
-        }
-      });
-  
-      const formatedEvents = events.map(eventResponseSerializer);
-      return res.status(200).json(formatedEvents);
-    } catch (error) {
-      console.error('Erreur lors de la récupération des Events :', error);
-      return res.status(500).json({ error: 'Erreur interne du serveur' });
-    }
-  };
+exports.getEvents = async (req, res) => {
+  const { page = 1, limit = 100 } = req.query;
+
+  try {
+    const events = await prisma.event.findMany({
+      include: {
+        category: true,
+        workshops: true,
+        owner: true,
+        masterOfCeremonies: true,
+      },
+      skip: (page - 1) * limit,
+      take: parseInt(limit),
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
+      }
+    });
+
+    // Formater les objets imbriqués
+    const formattedEvents = events.map(event => {
+      if (event.owner) {
+        event.owner = userResponseSerializer(event.owner);
+      }
+      if (event.masterOfCeremonies) {
+        event.masterOfCeremonies = event.masterOfCeremonies.map(mc => userResponseSerializer(mc));
+      }
+      return eventResponseSerializer(event);
+    });
+
+    return res.status(200).json(formattedEvents);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des Events :', error);
+    return res.status(500).json({ error: 'Erreur interne du serveur' });
+  }
+};
+  // Fonction pour récupérer tous les Events avec pagination
+exports.getEventsInactifs = async (req, res) => {
+  const { page = 1, limit = 100 } = req.query;
+
+  try {
+    const events = await prisma.event.findMany({
+      include: {
+        category: true,
+        workshops: true,
+        owner: true,
+        masterOfCeremonies: true,
+      },
+      skip: (page - 1) * limit,
+      take: parseInt(limit),
+      where: {
+        isActive: false,
+      },
+      orderBy: {
+        name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
+      }
+    });
+
+    // Formater les objets imbriqués
+    const formattedEvents = events.map(event => {
+      if (event.owner) {
+        event.owner = userResponseSerializer(event.owner);
+      }
+      if (event.masterOfCeremonies) {
+        event.masterOfCeremonies = event.masterOfCeremonies.map(mc => userResponseSerializer(mc));
+      }
+      return eventResponseSerializer(event);
+    });
+
+    return res.status(200).json(formattedEvents);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des Events :', error);
+    return res.status(500).json({ error: 'Erreur interne du serveur' });
+  }
+};
   
   // Fonction pour récupérer un Event par son ID
   exports.getEvent = async (req, res) => {
     console.log("getEvent ok");
     const { id } = req.params;
+    console.log(id);
   
     try {
+      
       const event = await prisma.event.findUnique({
         where: {
           id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
@@ -144,8 +217,9 @@ exports.createEvent = async (req, res) => {
           category: true,
           workshops: true,
           masterOfCeremonies: true,
-        },
+        }
       });
+      console.log(event);
   
       // Vérification de l'existence de la Event
       if (!event) {
@@ -163,9 +237,12 @@ exports.createEvent = async (req, res) => {
       if(event.owner){
         event.owner=userResponseSerializer(event.owner);
       }
+      if(event.masterOfCeremonies){
+        event.ownmasterOfCeremonieser=userResponseSerializer(event.masterOfCeremonies);
+      }
   
       // Réponse avec la Event trouvé
-      return res.status(200).json(eventDetailResponseSerializer(events));
+      return res.status(200).json(eventDetailResponseSerializer(event));
     } catch (error) {
       console.error('Erreur lors de la récupération de la Event :', error);
       return res.status(500).json({ error: 'Erreur interne du serveur' });
