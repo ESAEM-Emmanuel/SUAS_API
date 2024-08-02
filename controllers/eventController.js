@@ -82,6 +82,7 @@ exports.createEvent = async (req, res) => {
       const events = await prisma.event.findMany({
         where: {
           owner: id, // Assurez-vous que l'ID est utilisé tel quel (string)
+          isActive: true,
         },
         include: {
           workshops: true,
