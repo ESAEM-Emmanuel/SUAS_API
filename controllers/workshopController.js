@@ -22,6 +22,7 @@ exports.createWorkshop = async (req, res) => {
     price,
     startDate,
     endDate,
+    isOnlineWorkshop,
     isPublic, } = req.body;
 
   try {
@@ -48,7 +49,7 @@ exports.createWorkshop = async (req, res) => {
     formattedStartDate.setHours(0, 0, 0, 0);
 
     const formattedEndDate = new Date(endDate);
-    formattedEndDate.setHours(0, 0, 0, 0);
+    formattedEndDate.setHours(23, 59, 59, 999);
     const event = await prisma.event.findUnique({
       where: {
         id: eventId, // Assurez-vous que l'ID est utilisé tel quel (string)
@@ -59,7 +60,10 @@ exports.createWorkshop = async (req, res) => {
     }
     
     eventStartDate =event.startDate ;
-    eventStartDate =event.endDate ;
+    eventEndDate =event.endDate ;
+
+    console.log("eventStartDate : " + eventStartDate);
+    console.log("eventEndDate : " + eventEndDate);
     // Vérifier si les dates sont comprises entre event_start_date et event_end_date
     if (formattedStartDate < eventStartDate || formattedStartDate > eventEndDate || 
       formattedEndDate < eventStartDate || formattedEndDate > eventEndDate) {
@@ -85,6 +89,7 @@ exports.createWorkshop = async (req, res) => {
         endDate: formattedEndDate,
         referenceNumber,
         isActive: true,
+        isOnlineWorkshop:isOnlineWorkshop|| false,
         isPublic:isPublic|| false,
         createdById: req.userId,
         createdAt: DateTime.now().toJSDate(),
@@ -210,6 +215,7 @@ exports.createWorkshop = async (req, res) => {
         price,
         startDate,
         endDate,
+        isOnlineWorkshop,
         isPublic,
     } = req.body;
   
@@ -225,7 +231,7 @@ exports.createWorkshop = async (req, res) => {
       formattedStartDate.setHours(0, 0, 0, 0);
 
       const formattedEndDate = new Date(endDate);
-      formattedEndDate.setHours(0, 0, 0, 0);
+      formattedEndDate.setHours(23, 59, 59, 999);
 
       const event = await prisma.event.findUnique({
         where: {
@@ -237,7 +243,9 @@ exports.createWorkshop = async (req, res) => {
       }
       
       eventStartDate =event.startDate ;
-      eventStartDate =event.endDate ;
+      eventEndDate =event.endDate ;
+      console.log("eventStartDate : " + eventStartDate);
+      console.log("eventStartDate : " + eventStartDate);
       // Vérifier si les dates sont comprises entre event_start_date et event_end_date
       if (formattedStartDate < eventStartDate || formattedStartDate > eventEndDate || 
         formattedEndDate < eventStartDate || formattedEndDate > eventEndDate) {
@@ -264,6 +272,7 @@ exports.createWorkshop = async (req, res) => {
             price,
             startDate: formattedStartDate,
             endDate: formattedEndDate,
+            isOnlineWorkshop:isOnlineWorkshop|| false,
             isPublic:isPublic|| false,
             updatedById: req.userId,
             updatedAt: DateTime.now().toJSDate(), // Utilisez DateTime.now().toJSDate() pour obtenir une date sérialisable
@@ -283,23 +292,31 @@ exports.createWorkshop = async (req, res) => {
         where: {
           id: id,
         },
+        include: {
+          created: true,
+          updated: true,
+          approved: true,
+          event: true,
+          participants: true,
+          messages: true,
+      },
       });
   
-        if (!workshop) {
-        return res.status(404).json({ error: 'workshop non trouvé' });
-        }
-        if(workshop.created){
+      if (!workshop) {
+      return res.status(404).json({ error: 'workshop non trouvé' });
+      }
+      if(workshop.created){
 
-        workshop.created=userResponseSerializer(workshop.created);
-        }
-        if(workshop.updated){
+      workshop.created=userResponseSerializer(workshop.created);
+      }
+      if(workshop.updated){
 
-            workshop.updated=userResponseSerializer(workshop.updated);
-        }
-        if(workshop.approved){
+          workshop.updated=userResponseSerializer(workshop.updated);
+      }
+      if(workshop.approved){
 
-            workshop.approved=userResponseSerializer(workshop.approved);
-        }
+          workshop.approved=userResponseSerializer(workshop.approved);
+      }
         
   
       // Réponse avec la workshop mise à jour

@@ -38,7 +38,7 @@ exports.createEvent = async (req, res) => {
     formattedStartDate.setHours(0, 0, 0, 0);
 
     const formattedEndDate = new Date(endDate);
-    formattedEndDate.setHours(0, 0, 0, 0);
+    formattedEndDate.setHours(23, 59, 59, 999);
 
     // Comparer les dates
     if (formattedEndDate < formattedStartDate) {
@@ -274,7 +274,7 @@ exports.getEventsInactifs = async (req, res) => {
       formattedStartDate.setHours(0, 0, 0, 0);
 
       const formattedEndDate = new Date(endDate);
-      formattedEndDate.setHours(0, 0, 0, 0);
+      formattedEndDate.setHours(23, 59, 59, 999);
 
       // Comparer les dates
       if (formattedEndDate < formattedStartDate) {
