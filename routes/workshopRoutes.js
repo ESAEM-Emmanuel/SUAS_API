@@ -17,5 +17,6 @@ router.put('/:id', workshopController.updateWorkshop);
 router.patch('/approved/:id', workshopController.approvedWorkshop);
 router.delete('/:id', workshopController.deleteWorkshop);
 router.patch('/:id', workshopController.restoreWorkshop);
+router.patch('/accesskey/:id', workshopController.accessKeyWorkshop);
 
 module.exports = router;

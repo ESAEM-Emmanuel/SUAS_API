@@ -5,6 +5,7 @@ const workshopResponseSerializer = (workshop) => ({
     name: workshop.name,
     description: workshop.description,
     room: workshop.room,
+    accessKey: workshop.accessKey,
     photo: workshop.photo,
     numberOfPlaces: workshop.numberOfPlaces,
     price: workshop.price,
