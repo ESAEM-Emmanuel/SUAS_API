@@ -15,6 +15,7 @@ exports.createWorkshop = async (req, res) => {
   const { 
     eventId,
     name,
+    ownerId,
     photo,
     description,
     room,
@@ -80,6 +81,7 @@ exports.createWorkshop = async (req, res) => {
       data: {
         eventId,
         name,
+        ownerId,
         photo,
         description,
         room,
@@ -112,6 +114,11 @@ exports.createWorkshop = async (req, res) => {
   
     try {
       const workshops = await prisma.workshop.findMany({
+        include: {
+          owner: true,
+          created: true,
+          approved: true,
+        },
         skip: (page - 1) * limit,
         take: parseInt(limit),
         where: {
@@ -119,11 +126,24 @@ exports.createWorkshop = async (req, res) => {
         },
         orderBy: {
           name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
-        },
+        }
       });
   
-      const formatedworkshops = workshops.map(workshopResponseSerializer);
-      return res.status(200).json(formatedworkshops);
+      // Formater les objets imbriqués
+      const formattedWorkshops = workshops.map(workshop => {
+        if (workshop.owner) {
+          workshop.owner = userResponseSerializer(workshop.owner);
+        }
+        if (workshop.created) {
+          workshop.created = userResponseSerializer(workshop.created);
+        }
+        if (workshop.approved) {
+          workshop.approved = userResponseSerializer(workshop.approved);
+        }
+        return workshopResponseSerializer(workshop);
+      });
+
+      return res.status(200).json(formattedWorkshops);
     } catch (error) {
       console.error('Erreur lors de la récupération des workshops :', error);
       return res.status(500).json({ error: 'Erreur interne du serveur' });
@@ -135,6 +155,11 @@ exports.createWorkshop = async (req, res) => {
   
     try {
       const workshops = await prisma.workshop.findMany({
+        include: {
+          owner: true,
+          created: true,
+          approved: true,
+        },
         skip: (page - 1) * limit,
         take: parseInt(limit),
         where: {
@@ -142,11 +167,24 @@ exports.createWorkshop = async (req, res) => {
         },
         orderBy: {
           name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
-        },
+        }
       });
   
-      const formatedworkshops = workshops.map(workshopResponseSerializer);
-      return res.status(200).json(formatedworkshops);
+      // Formater les objets imbriqués
+      const formattedWorkshops = workshops.map(workshop => {
+        if (workshop.owner) {
+          workshop.owner = userResponseSerializer(workshop.owner);
+        }
+        if (workshop.created) {
+          workshop.created = userResponseSerializer(workshop.created);
+        }
+        if (workshop.approved) {
+          workshop.approved = userResponseSerializer(workshop.approved);
+        }
+        return workshopResponseSerializer(workshop);
+      });
+
+      return res.status(200).json(formattedWorkshops);
     } catch (error) {
       console.error('Erreur lors de la récupération des workshops :', error);
       return res.status(500).json({ error: 'Erreur interne du serveur' });
@@ -164,6 +202,7 @@ exports.createWorkshop = async (req, res) => {
           id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
         },
         include: {
+            owner: true,
             created: true,
             updated: true,
             approved: true,
@@ -180,6 +219,10 @@ exports.createWorkshop = async (req, res) => {
 
         if (!workshop) {
         return res.status(404).json({ error: 'workshop non trouvé' });
+        }
+        if(workshop.owner){
+
+        workshop.owner=userResponseSerializer(workshop.owner);
         }
         if(workshop.created){
 
@@ -208,6 +251,7 @@ exports.createWorkshop = async (req, res) => {
     const {
         eventId,
         name,
+        ownerId,
         photo,
         description,
         room,
@@ -265,6 +309,7 @@ exports.createWorkshop = async (req, res) => {
         data: {
             eventId,
             name,
+            ownerId,
             photo,
             description,
             room,
@@ -278,6 +323,7 @@ exports.createWorkshop = async (req, res) => {
             updatedAt: DateTime.now().toJSDate(), // Utilisez DateTime.now().toJSDate() pour obtenir une date sérialisable
         },
         include: {
+            owner: true,
             created: true,
             updated: true,
             approved: true,
@@ -293,6 +339,7 @@ exports.createWorkshop = async (req, res) => {
           id: id,
         },
         include: {
+          owner: true,
           created: true,
           updated: true,
           approved: true,
@@ -304,6 +351,10 @@ exports.createWorkshop = async (req, res) => {
   
       if (!workshop) {
       return res.status(404).json({ error: 'workshop non trouvé' });
+      }
+      if(workshop.owner){
+
+      workshop.owner=userResponseSerializer(workshop.owner);
       }
       if(workshop.created){
 

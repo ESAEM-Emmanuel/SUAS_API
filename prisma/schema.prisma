@@ -48,6 +48,7 @@ model User {
   workshopsCreatedBy Workshop[] @relation("CreatedBy")
   workshopsUpdatedBy Workshop[] @relation("UpdatedBy")
   workshopsApprovedBy Workshop[] @relation("ApprovedBy")
+  workshopsOwner      Workshop[] @relation("OwnerId")
 
   participantsCreated     Participant[]     @relation("CreatedBy")
   participantsUpdated     Participant[]     @relation("UpdatedBy")
@@ -132,11 +133,12 @@ model Workshop {
   room             String
   photo            String
   numberOfPlaces   Int
+  ownerId          String?
   isOnlineWorkshop Boolean     @default(false)
   price            Decimal
   startDate        DateTime
   endDate          DateTime
-  accessKey         String?
+  accessKey        String?
   approvedAt       DateTime?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
@@ -146,6 +148,7 @@ model Workshop {
   createdById      String? 
   updatedById      String?
   approvedById     String?
+  owner            User?        @relation("OwnerId", fields: [ownerId], references: [id])
   created          User?       @relation("CreatedBy", fields: [createdById], references: [id])
   updated          User?       @relation("UpdatedBy", fields: [updatedById], references: [id])
   approved         User?       @relation("ApprovedBy", fields: [approvedById], references: [id])

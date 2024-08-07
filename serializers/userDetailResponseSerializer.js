@@ -24,6 +24,7 @@ const userDetailResponseSerializer = (user) => ({
     workshopsCreatedBy: user.workshopsCreatedBy,
     workshopsUpdatedBy: user.workshopsUpdatedBy,
     workshopsApprovedBy: user.workshopsApprovedBy,
+    workshopsOwner: user.workshopsOwner,
     participantsCreated: user.participantsCreated,
     participantsUpdated: user.participantsUpdated,
     participantsApprovedBy: user.participantsApprovedBy,

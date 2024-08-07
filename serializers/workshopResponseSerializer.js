@@ -3,6 +3,7 @@ const workshopResponseSerializer = (workshop) => ({
     referenceNumber: workshop.referenceNumber,
     eventId: workshop.eventId,
     name: workshop.name,
+    ownerId: workshop.ownerId,
     description: workshop.description,
     room: workshop.room,
     accessKey: workshop.accessKey,
@@ -13,7 +14,6 @@ const workshopResponseSerializer = (workshop) => ({
     startDate: workshop.startDate,
     endDate: workshop.endDate,
     isActive: workshop.isActive,
-    ownerId: workshop.ownerId,
     createdAt: workshop.createdAt,
     updatedAt: workshop.updatedAt,
     isApproved: workshop.isApproved,
@@ -21,7 +21,11 @@ const workshopResponseSerializer = (workshop) => ({
     approvedAt: workshop.approvedAt,
     createdById: workshop.createdById,
     updatedById: workshop.updatedById,
-    approvedById: workshop.approvedById
+    approvedById: workshop.approvedById,
+
+    owner: workshop.owner,
+    created: workshop.created,
+    approved: workshop.approved,
   });
   
   module.exports = workshopResponseSerializer;
