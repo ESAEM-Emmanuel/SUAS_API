@@ -11,7 +11,7 @@ const userResponseSerializer = require('../serializers/userResponseSerializer');
 
 // Fonction pour créer un nouvel participantRole
 exports.createParticipantRole = async (req, res) => {
-    console.log("createparticipantRole");
+  console.log("createparticipantRole");
   const { name, permissionList} = req.body;
 
   try {
