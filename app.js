@@ -122,7 +122,7 @@ app.use('/api/events', eventRoutes);
 app.use('/api/workshops', workshopRoutes);
 app.use('/api/participants', participantRoutes);
 app.use('/api/messages', messageRoutes);
-app.use('/api/master-of-ceremony', masterOfCeremonyRoutes);
+app.use('/api/masterofceremonies', masterOfCeremonyRoutes);
 app.use("/api/usersroles", userRoleRoutes);// route des permissions
 app.use("/api/participantsroles", participantRoleRoutes);// route des permissions
 
