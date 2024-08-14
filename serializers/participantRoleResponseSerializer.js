@@ -1,19 +1,12 @@
-const participantResponseSerializer = (participant) => ({
-    id: participant.id,
-    participantname: participant.participantname,
-    referenceNumber: participant.referenceNumber,
-    email: participant.email,
-    phone: participant.phone,
-    name: participant.name,
-    photo: participant.photo,
-    gender: participant.gender,
-    participantRoleId: participant.participantRoleId,
-    isStaff: participant.isStaff,
-    isAdmin: participant.isAdmin,
-    isOwner: participant.isOwner,
-    isActive: participant.isActive,
-    createdBy: participant.createdBy,
-    updatedBy: participant.updatedBy
+const participantResponseSerializer = (participantRole) => ({
+    id: participantRole.id,
+    referenceNumber: participantRole.referenceNumber,
+    name: participantRole.name,
+    permissionList: participantRole.permissionList,
+    createdAt: participantRole.createdAt,
+    updatedAt: participantRole.updatedAt,
+    createdBy: participantRole.createdBy,
+    updatedBy: participantRole.updatedBy,
   });
   
   module.exports = participantResponseSerializer;

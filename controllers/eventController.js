@@ -199,13 +199,127 @@ exports.getEventsInactifs = async (req, res) => {
 };
   
   // Fonction pour récupérer un Event par son ID
+  // exports.getEvent = async (req, res) => {
+  //   console.log("getEvent ok");
+  //   const { id } = req.params;
+  //   console.log(id);
+  
+  //   try {
+      
+  //     const event = await prisma.event.findUnique({
+  //       where: {
+  //         id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
+  //       },
+  //       include: {
+  //         created: true,
+  //         updated: true,
+  //         approved: true,
+  //         owner: true,
+  //         category: true,
+  //         workshops: true,
+  //         masterOfCeremonies: true,
+  //       }
+  //     });
+  //     console.log(event);
+  
+  //     // Vérification de l'existence de la Event
+  //     if (!event) {
+  //       return res.status(404).json({ error: 'Event non trouvé' });
+  //     }
+  //     if(event.created){
+  //       event.created=userResponseSerializer(event.created);
+  //     }
+  //     if(event.updated){
+  //       event.updated=userResponseSerializer(event.updated);
+  //     }
+  //     if(event.approved){
+  //       event.approved=userResponseSerializer(event.approved);
+  //     }
+  //     if(event.owner){
+  //       event.owner=userResponseSerializer(event.owner);
+  //     }
+  //     if(event.masterOfCeremonies){
+  //       event.ownmasterOfCeremonieser=userResponseSerializer(event.masterOfCeremonies);
+  //     }
+  
+  //     // Réponse avec la Event trouvé
+  //     return res.status(200).json(eventDetailResponseSerializer(event));
+  //   } catch (error) {
+  //     console.error('Erreur lors de la récupération de la Event :', error);
+  //     return res.status(500).json({ error: 'Erreur interne du serveur' });
+  //   }
+  // };
+  // exports.getEvent = async (req, res) => {
+  //   console.log("getEvent ok");
+  //   const { id } = req.params;
+  //   console.log(id);
+  
+  //   try {
+  //     const event = await prisma.event.findUnique({
+  //       where: {
+  //         id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
+  //       },
+  //       include: {
+  //         created: true,
+  //         updated: true,
+  //         approved: true,
+  //         owner: true,
+  //         category: true,
+  //         workshops: {
+  //           include: {
+  //             owner: true // Inclut le détail du propriétaire du workshop
+  //           }
+  //         },
+  //         masterOfCeremonies: true,
+  //       }
+  //     });
+  //     console.log(event);
+  
+  //     // Vérification de l'existence de l'event
+  //     if (!event) {
+  //       return res.status(404).json({ error: 'Event non trouvé' });
+  //     }
+  
+  //     // Sérialisation des détails de l'event
+  //     if (event.created) {
+  //       event.created = userResponseSerializer(event.created);
+  //     }
+  //     if (event.updated) {
+  //       event.updated = userResponseSerializer(event.updated);
+  //     }
+  //     if (event.approved) {
+  //       event.approved = userResponseSerializer(event.approved);
+  //     }
+  //     if (event.owner) {
+  //       event.owner = userResponseSerializer(event.owner);
+  //     }
+  //     if (event.masterOfCeremonies) {
+  //       event.masterOfCeremonies = userResponseSerializer(event.masterOfCeremonies);
+  //     }
+  
+  //     // Sérialisation des workshops et de leurs owners
+  //     if (event.workshops && event.workshops.length > 0) {
+  //       event.workshops = event.workshops.map((workshop) => {
+  //         if (workshop.owner) {
+  //           workshop.owner = userResponseSerializer(workshop.owner);
+  //         }
+  //         return workshopResponseSerializer(workshop);
+  //       });
+  //     }
+  
+  //     // Réponse avec les détails de l'event sérialisé
+  //     return res.status(200).json(eventDetailResponseSerializer(event));
+  //   } catch (error) {
+  //     console.error('Erreur lors de la récupération de l\'event :', error);
+  //     return res.status(500).json({ error: 'Erreur interne du serveur' });
+  //   }
+  // };
   exports.getEvent = async (req, res) => {
     console.log("getEvent ok");
     const { id } = req.params;
     console.log(id);
   
     try {
-      
       const event = await prisma.event.findUnique({
         where: {
           id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
@@ -216,37 +330,52 @@ exports.getEventsInactifs = async (req, res) => {
           approved: true,
           owner: true,
           category: true,
-          workshops: true,
+          workshops: {
+            include: {
+              owner: true // Inclut le détail du propriétaire du workshop
+            }
+          },
           masterOfCeremonies: true,
         }
       });
       console.log(event);
   
-      // Vérification de l'existence de la Event
+      // Vérification de l'existence de l'event
       if (!event) {
         return res.status(404).json({ error: 'Event non trouvé' });
       }
-      if(event.created){
-        event.created=userResponseSerializer(event.created);
-      }
-      if(event.updated){
-        event.updated=userResponseSerializer(event.updated);
-      }
-      if(event.approved){
-        event.approved=userResponseSerializer(event.approved);
-      }
-      if(event.owner){
-        event.owner=userResponseSerializer(event.owner);
-      }
-      if(event.masterOfCeremonies){
-        event.ownmasterOfCeremonieser=userResponseSerializer(event.masterOfCeremonies);
-      }
   
-      // Réponse avec la Event trouvé
-      return res.status(200).json(eventDetailResponseSerializer(event));
+      // Sérialisation des détails de l'event
+      const serializedEvent = {
+        ...event,
+        workshops: event.workshops.map(workshop => ({
+          ...workshop,
+          owner: workshop.owner ? {
+            id: workshop.owner.id,
+            username: workshop.owner.username,
+            referenceNumber: workshop.owner.referenceNumber,
+            email: workshop.owner.email,
+            phone: workshop.owner.phone,
+            name: workshop.owner.name,
+            surname: workshop.owner.surname,
+            photo: workshop.owner.photo,
+            gender: workshop.owner.gender,
+            userRoleId: workshop.owner.userRoleId,
+            isStaff: workshop.owner.isStaff,
+            isAdmin: workshop.owner.isAdmin,
+            isOwner: workshop.owner.isOwner,
+            isActive: workshop.owner.isActive,
+            createdBy: workshop.owner.createdBy,
+            updatedBy: workshop.owner.updatedBy
+          } : null
+        }))
+      };
+  
+      // Réponse avec l'event sérialisé
+      return res.json(serializedEvent);
     } catch (error) {
-      console.error('Erreur lors de la récupération de la Event :', error);
-      return res.status(500).json({ error: 'Erreur interne du serveur' });
+      console.error("Erreur lors de la récupération de l'événement:", error);
+      return res.status(500).json({ error: 'Une erreur est survenue lors de la récupération de l\'événement.' });
     }
   };
   
