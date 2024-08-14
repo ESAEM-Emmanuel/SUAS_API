@@ -205,56 +205,6 @@ exports.getEventsInactifs = async (req, res) => {
   //   console.log(id);
   
   //   try {
-      
-  //     const event = await prisma.event.findUnique({
-  //       where: {
-  //         id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-  //       },
-  //       include: {
-  //         created: true,
-  //         updated: true,
-  //         approved: true,
-  //         owner: true,
-  //         category: true,
-  //         workshops: true,
-  //         masterOfCeremonies: true,
-  //       }
-  //     });
-  //     console.log(event);
-  
-  //     // Vérification de l'existence de la Event
-  //     if (!event) {
-  //       return res.status(404).json({ error: 'Event non trouvé' });
-  //     }
-  //     if(event.created){
-  //       event.created=userResponseSerializer(event.created);
-  //     }
-  //     if(event.updated){
-  //       event.updated=userResponseSerializer(event.updated);
-  //     }
-  //     if(event.approved){
-  //       event.approved=userResponseSerializer(event.approved);
-  //     }
-  //     if(event.owner){
-  //       event.owner=userResponseSerializer(event.owner);
-  //     }
-  //     if(event.masterOfCeremonies){
-  //       event.ownmasterOfCeremonieser=userResponseSerializer(event.masterOfCeremonies);
-  //     }
-  
-  //     // Réponse avec la Event trouvé
-  //     return res.status(200).json(eventDetailResponseSerializer(event));
-  //   } catch (error) {
-  //     console.error('Erreur lors de la récupération de la Event :', error);
-  //     return res.status(500).json({ error: 'Erreur interne du serveur' });
-  //   }
-  // };
-  // exports.getEvent = async (req, res) => {
-  //   console.log("getEvent ok");
-  //   const { id } = req.params;
-  //   console.log(id);
-  
-  //   try {
   //     const event = await prisma.event.findUnique({
   //       where: {
   //         id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
