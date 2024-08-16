@@ -267,7 +267,6 @@ exports.getEventsInactifs = async (req, res) => {
   exports.getEvent = async (req, res) => {
     console.log("getEvent ok");
     const { id } = req.params;
-    console.log(id);
   
     try {
       const event = await prisma.event.findUnique({
@@ -288,7 +287,6 @@ exports.getEventsInactifs = async (req, res) => {
           masterOfCeremonies: true,
         }
       });
-      console.log(event);
   
       // Vérification de l'existence de l'event
       if (!event) {
