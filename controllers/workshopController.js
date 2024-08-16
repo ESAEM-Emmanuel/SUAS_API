@@ -8,6 +8,8 @@ const workshopCreateSerializer = require('../serializers/workshopCreateSerialize
 const workshopResponseSerializer = require('../serializers/workshopResponseSerializer');
 const workshopDetailResponseSerializer = require('../serializers/workshopDetailResponseSerializer');
 const userResponseSerializer = require('../serializers/userResponseSerializer');
+const participantResponseSerializer = require('../serializers/participantResponseSerializer');
+const participantRoleResponseSerializer = require('../serializers/participantRoleResponseSerializer');
 
 // Fonction pour créer un nouvel workshop
 exports.createWorkshop = async (req, res) => {
@@ -192,53 +194,154 @@ exports.createWorkshop = async (req, res) => {
   };
   
   // Fonction pour récupérer un workshop par son ID
+  // exports.getWorkshop = async (req, res) => {
+  //   console.log("getworkshop ok");
+  //   const { id } = req.params;
+  
+  //   try {
+  //     const workshop = await prisma.workshop.findUnique({
+  //       where: {
+  //         id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
+  //       },
+  //       include: {
+  //           owner: true,
+  //           created: true,
+  //           updated: true,
+  //           approved: true,
+  //           event: true,
+  //           participants: true,
+  //           messages: true,
+  //       },
+  //     });
+  
+  //     // Vérification de l'existence de la workshop
+  //       if (!workshop) {
+  //       return res.status(404).json({ error: 'workshop non trouvé' });
+  //       }
+
+  //       if (!workshop) {
+  //       return res.status(404).json({ error: 'workshop non trouvé' });
+  //       }
+  //       if(workshop.owner){
+
+  //       workshop.owner=userResponseSerializer(workshop.owner);
+  //       }
+  //       if(workshop.created){
+
+  //       workshop.created=userResponseSerializer(workshop.created);
+  //       }
+  //       if(workshop.updated){
+
+  //           workshop.updated=userResponseSerializer(workshop.updated);
+  //       }
+  //       if(workshop.approved){
+
+  //           workshop.approved=userResponseSerializer(workshop.approved);
+  //       }
+  
+  //     // Réponse avec la workshop trouvé
+  //     return res.status(200).json(workshopDetailResponseSerializer(workshop));
+  //   } catch (error) {
+  //     console.error('Erreur lors de la récupération de la workshop :', error);
+  //     return res.status(500).json({ error: 'Erreur interne du serveur' });
+  //   }
+  // };
+  // exports.getWorkshop = async (req, res) => {
+  //   console.log("getWorkshop OK");
+  //   const { id } = req.params;
+  
+  //   try {
+  //     const workshop = await prisma.workshop.findUnique({
+  //       where: { id },
+  //       include: {
+  //         owner: true,
+  //         created: true,
+  //         updated: true,
+  //         approved: true,
+  //         event: true,
+  //         participants: {
+  //           include: {
+  //             participantRole: true
+  //           }
+  //         },
+  //         messages: true,
+  //       },
+  //     });
+  
+  //     // Vérification de l'existence de la workshop
+  //     if (!workshop) {
+  //       return res.status(404).json({ error: 'Workshop non trouvé' });
+  //     }
+  
+  //     // Sérialiser les informations de l'atelier
+  //     const serializedWorkshop = {
+  //       ...workshopDetailResponseSerializer(workshop),
+  //       owner: workshop.owner ? userResponseSerializer(workshop.owner) : null,
+  //       created: workshop.created ? userResponseSerializer(workshop.created) : null,
+  //       updated: workshop.updated ? userResponseSerializer(workshop.updated) : null,
+  //       approved: workshop.approved ? userResponseSerializer(workshop.approved) : null,
+  //       participants: workshop.participants.map(participant => ({
+  //         ...participantResponseSerializer(participant),
+  //         participantRole: participant.participantRole ? participantRoleResponseSerializer(participant.participantRole) : null,
+  //       }))
+  //     };
+  
+  //     return res.status(200).json(serializedWorkshop);
+  //   } catch (error) {
+  //     console.error('Erreur lors de la récupération de la workshop :', error);
+  //     return res.status(500).json({ error: 'Erreur interne du serveur' });
+  //   }
+  // };
+
   exports.getWorkshop = async (req, res) => {
-    console.log("getworkshop ok");
+    console.log("getWorkshop OK");
     const { id } = req.params;
   
     try {
       const workshop = await prisma.workshop.findUnique({
-        where: {
-          id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-        },
+        where: { id },
         include: {
-            owner: true,
-            created: true,
-            updated: true,
-            approved: true,
-            event: true,
-            participants: true,
-            messages: true,
+          owner: true,
+          created: true,
+          updated: true,
+          approved: true,
+          event: true,
+          participants: {
+            include: {
+              participantRole: true
+            }
+          },
+          messages: {
+            include: {
+              participant: true // Inclut le détail de l'utilisateur pour chaque message
+            }
+          },
         },
       });
   
       // Vérification de l'existence de la workshop
-        if (!workshop) {
-        return res.status(404).json({ error: 'workshop non trouvé' });
-        }
-
-        if (!workshop) {
-        return res.status(404).json({ error: 'workshop non trouvé' });
-        }
-        if(workshop.owner){
-
-        workshop.owner=userResponseSerializer(workshop.owner);
-        }
-        if(workshop.created){
-
-        workshop.created=userResponseSerializer(workshop.created);
-        }
-        if(workshop.updated){
-
-            workshop.updated=userResponseSerializer(workshop.updated);
-        }
-        if(workshop.approved){
-
-            workshop.approved=userResponseSerializer(workshop.approved);
-        }
+      if (!workshop) {
+        return res.status(404).json({ error: 'Workshop non trouvé' });
+      }
   
-      // Réponse avec la workshop trouvé
-      return res.status(200).json(workshopDetailResponseSerializer(workshop));
+      // Sérialiser les informations de l'atelier
+      const serializedWorkshop = {
+        ...workshopDetailResponseSerializer(workshop),
+        owner: workshop.owner ? userResponseSerializer(workshop.owner) : null,
+        created: workshop.created ? userResponseSerializer(workshop.created) : null,
+        updated: workshop.updated ? userResponseSerializer(workshop.updated) : null,
+        approved: workshop.approved ? userResponseSerializer(workshop.approved) : null,
+        participants: workshop.participants.map(participant => ({
+          ...participantResponseSerializer(participant),
+          participantRole: participant.participantRole ? participantRoleResponseSerializer(participant.participantRole) : null,
+        })),
+        messages: workshop.messages.map(message => ({
+          ...message,
+          participant: message.participant ? userResponseSerializer(message.participant) : null
+        }))
+      };
+  
+      return res.status(200).json(serializedWorkshop);
     } catch (error) {
       console.error('Erreur lors de la récupération de la workshop :', error);
       return res.status(500).json({ error: 'Erreur interne du serveur' });

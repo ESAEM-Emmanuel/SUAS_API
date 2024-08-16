@@ -3,6 +3,7 @@ const participantDetailResponseSerializer = (participant) => ({
     referenceNumber: participant.referenceNumber,
     workshopId: participant.workshopId,
     name: participant.name,
+    photo: participant.photo,
     description: participant.description,
     participantRoleId: participant.participantRoleId,
     isOnlineParticipation: participant.isOnlineParticipation,

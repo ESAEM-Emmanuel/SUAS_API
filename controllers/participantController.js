@@ -15,6 +15,7 @@ exports.createParticipant = async (req, res) => {
   const { 
     workshopId,
     name,
+    photo,
     description,
     participantRoleId,
     ownerId,
@@ -47,6 +48,7 @@ exports.createParticipant = async (req, res) => {
       data: {
         workshopId,
         name,
+        photo: photo || null,
         description,
         participantRoleId,
         ownerId,
@@ -195,7 +197,7 @@ exports.createParticipant = async (req, res) => {
         data: {
             eventId,
             name,
-            photo,
+            photo: photo || null,
             description,
             room,
             numberOfPlaces,

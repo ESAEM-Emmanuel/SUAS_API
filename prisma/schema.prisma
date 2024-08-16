@@ -264,6 +264,7 @@ model ParticipantRole {
   id                  String           @id @default(uuid())
   referenceNumber     String           @unique
   name                String           @unique
+  photo               String?
   permissionList      String[]
   createdById         String? 
   updatedById         String?

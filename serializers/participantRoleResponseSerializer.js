@@ -1,4 +1,4 @@
-const participantResponseSerializer = (participantRole) => ({
+const participantRoleResponseSerializer = (participantRole) => ({
     id: participantRole.id,
     referenceNumber: participantRole.referenceNumber,
     name: participantRole.name,
@@ -9,4 +9,4 @@ const participantResponseSerializer = (participantRole) => ({
     updatedBy: participantRole.updatedBy,
   });
   
-  module.exports = participantResponseSerializer;
+  module.exports = participantRoleResponseSerializer;

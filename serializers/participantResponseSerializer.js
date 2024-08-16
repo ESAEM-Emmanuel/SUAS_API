@@ -3,6 +3,7 @@ const participantResponseSerializer = (participant) => ({
     referenceNumber: participant.referenceNumber,
     workshopId: participant.workshopId,
     name: participant.name,
+    photo: participant.photo,
     description: participant.description,
     participantRoleId: participant.participantRoleId,
     isOnlineParticipation: participant.isOnlineParticipation,
@@ -14,7 +15,11 @@ const participantResponseSerializer = (participant) => ({
     isApproved: participant.isApproved,
     createdById: participant.createdById,
     updatedById: participant.updatedById,
-    approvedById: participant.approvedById
+    approvedById: participant.approvedById,
+
+    created: participant.created,
+    updated: participant.updated,
+    participants: participant.participants
   });
   
   module.exports = participantResponseSerializer;
