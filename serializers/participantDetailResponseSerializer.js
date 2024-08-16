@@ -16,6 +16,8 @@ const participantDetailResponseSerializer = (participant) => ({
     updatedById: participant.updatedById,
     approvedById: participant.approvedById,
     isActive: participant.isActive,
+    isActiveMicrophone: participant.isActiveMicrophone,
+    isHandRaised: participant.isHandRaised, 
     
     participantRole: participant.participantRole,
     created: participant.created,

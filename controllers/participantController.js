@@ -55,6 +55,8 @@ exports.createParticipant = async (req, res) => {
         isOnlineParticipation,
         referenceNumber,
         isActive: true,
+        isActiveMicrophone: false,
+        isHandRaised: false,
         createdById: req.userId,
         createdAt: DateTime.now().toJSDate(),
       },
@@ -201,7 +203,8 @@ exports.createParticipant = async (req, res) => {
             description,
             room,
             numberOfPlaces,
-            price,
+            isActiveMicrophone: false,
+            isHandRaised: false,
             startDate: new Date(startDate),
             endDate: new Date(endDate),
             updatedById: req.userId,
@@ -290,6 +293,64 @@ exports.createParticipant = async (req, res) => {
       return res.status(200).send();
     } catch (error) {
       console.error('Erreur lors de l\' approbation de la participant :', error);
+      return res.status(500).json({ error: 'Erreur interne du serveur' });
+    }
+  };
+  
+  // Fonction pour changer l'etat du microphones
+  exports.changeMicState = async (req, res) => {
+    const { id } = req.params;
+  
+    try {
+      // Recherche du participant par ID et vérification s'il est actif
+      const queryParticipant = await prisma.participant.findUnique({
+        where: { id: id },
+      });
+  
+      // Vérification de l'existence du participant
+      if (!queryParticipant || !queryParticipant.isActive) {
+        return res.status(404).json({ error: 'Participant non trouvé ou inactif' });
+      }
+  
+      // Mise à jour de l'état du microphone
+      const updatedParticipant = await prisma.participant.update({
+        where: { id: id },
+        data: { isActiveMicrophone: !queryParticipant.isActiveMicrophone },
+      });
+  
+      // Réponse réussie
+      return res.status(200).json({ message: 'État du microphone mis à jour avec succès', participant: updatedParticipant });
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de l\'état du microphone :', error);
+      return res.status(500).json({ error: 'Erreur interne du serveur' });
+    }
+  };
+  
+  // Fonction pour lever ou baisser la main
+  exports.changeHandState = async (req, res) => {
+    const { id } = req.params;
+  
+    try {
+      // Recherche du participant par ID et vérification s'il est actif
+      const queryParticipant = await prisma.participant.findUnique({
+        where: { id: id },
+      });
+  
+      // Vérification de l'existence du participant
+      if (!queryParticipant || !queryParticipant.isActive) {
+        return res.status(404).json({ error: 'Participant non trouvé ou inactif' });
+      }
+  
+      // Mise à jour de la main
+      const updatedParticipant = await prisma.participant.update({
+        where: { id: id },
+        data: { isHandRaised: !queryParticipant.isHandRaised },
+      });
+  
+      // Réponse réussie
+      return res.status(200).json({ message: 'État de la main mis à jour avec succès', participant: updatedParticipant });
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la main :', error);
       return res.status(500).json({ error: 'Erreur interne du serveur' });
     }
   };

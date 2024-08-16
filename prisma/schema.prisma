@@ -184,10 +184,13 @@ model Participant {
   workshopId        String
   name              String
   description       String          @db.Text
+  photo             String?
   participantRoleId String
   ownerId           String
   isOnlineParticipation Boolean     @default(false)
   isApproved        Boolean         @default(false)
+  isActiveMicrophone  Boolean       @default(false)
+  isHandRaised      Boolean         @default(false)
   approvedAt        DateTime?
   createdById       String?
   updatedById       String?
@@ -264,7 +267,6 @@ model ParticipantRole {
   id                  String           @id @default(uuid())
   referenceNumber     String           @unique
   name                String           @unique
-  photo               String?
   permissionList      String[]
   createdById         String? 
   updatedById         String?
