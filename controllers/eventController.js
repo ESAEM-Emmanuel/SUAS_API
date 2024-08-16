@@ -294,6 +294,23 @@ exports.getEventsInactifs = async (req, res) => {
       if (!event) {
         return res.status(404).json({ error: 'Event non trouvé' });
       }
+
+      if(event.owner){
+
+        event.owner=userResponseSerializer(event.owner);
+        }
+        if(event.created){
+
+          event.created=userResponseSerializer(event.created);
+        }
+        if(event.updated){
+
+          event.updated=userResponseSerializer(event.updated);
+        }
+        if(event.approved){
+
+          event.approved=userResponseSerializer(event.approved);
+        }
   
       // Sérialisation des détails de l'event
       const serializedEvent = {
