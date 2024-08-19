@@ -391,8 +391,8 @@ exports.createWorkshop = async (req, res) => {
       
       eventStartDate =event.startDate ;
       eventEndDate =event.endDate ;
-      console.log("eventStartDate : " + eventStartDate);
-      console.log("eventStartDate : " + eventStartDate);
+      // console.log("eventStartDate : " + eventStartDate);
+      // console.log("eventStartDate : " + eventStartDate);
       // Vérifier si les dates sont comprises entre event_start_date et event_end_date
       if (formattedStartDate < eventStartDate || formattedStartDate > eventEndDate || 
         formattedEndDate < eventStartDate || formattedEndDate > eventEndDate) {
@@ -525,9 +525,15 @@ exports.createWorkshop = async (req, res) => {
   // Fonction pour modifier le statut d'un workshop
   exports.changeStatusWorkshop = async (req, res) => {
     const { id } = req.params;
-    const {
-      status,
-      } = req.body;
+    const { status } = req.body;
+
+    // Liste des statuts autorisés
+    const validStatuses = ['NOTBEGUN', 'STARTED', 'ONGOING', 'FINISHED'];
+
+    // Vérification que le statut est valide
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Statut invalide; les valeurs possibles sont: NOTBEGUN, STARTED, ONGOING, FINISHED' });
+    }
     // Recherche de l'workshop par nom d'workshop
     const queryworkshop = await prisma.workshop.findUnique({
       where: {
