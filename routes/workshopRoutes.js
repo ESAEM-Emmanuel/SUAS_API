@@ -15,6 +15,7 @@ router.get('/', workshopController.getWorkshops);
 router.get('/:id', workshopController.getWorkshop);
 router.put('/:id', workshopController.updateWorkshop);
 router.patch('/approved/:id', workshopController.approvedWorkshop);
+router.patch('/changestatusworkshop/:id', workshopController.changeStatusWorkshop);
 router.delete('/:id', workshopController.deleteWorkshop);
 router.patch('/:id', workshopController.restoreWorkshop);
 router.patch('/accesskey/:id', workshopController.accessKeyWorkshop);

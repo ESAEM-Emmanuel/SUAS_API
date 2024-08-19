@@ -522,6 +522,48 @@ exports.createWorkshop = async (req, res) => {
     }
   };
   
+  // Fonction pour modifier le statut d'un workshop
+  exports.changeStatusWorkshop = async (req, res) => {
+    const { id } = req.params;
+    const {
+      status,
+      } = req.body;
+    // Recherche de l'workshop par nom d'workshop
+    const queryworkshop = await prisma.workshop.findUnique({
+      where: {
+        id:id,
+        isActive:true
+      },
+    });
+
+    // Vérification de l'workshop
+    if (!queryworkshop) {
+      return res.status(404).json({ error: 'workshop non trouvé' });
+    }
+  
+    try {
+      // Mise à jour de la workshop pour une suppression douce
+      const approvedWorkshop = await prisma.workshop.update({
+        where: {
+          id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
+        },
+        data: {
+          status,
+        },
+      });
+  
+      if (!approvedWorkshop) {
+        return res.status(404).json({ error: 'workshop non trouvé' });
+      }
+  
+      // Réponse de mise à jour du statut réussie
+      return res.status(200).send();
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du statut du workshop :', error);
+      return res.status(500).json({ error: 'Erreur interne du serveur' });
+    }
+  };
+  
   exports.deleteWorkshop = async (req, res) => {
     const { id } = req.params;
   

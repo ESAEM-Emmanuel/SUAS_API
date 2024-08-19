@@ -131,6 +131,7 @@ model Workshop {
   eventId          String
   description      String      @db.Text
   room             String
+  status           StatusWorkshop      @default(NOTBEGUN)
   photo            String
   numberOfPlaces   Int
   ownerId          String?
@@ -283,6 +284,13 @@ enum Gender {
   MALE
   FEMALE
   OTHER
+}
+
+enum StatusWorkshop {
+  NOTBEGUN
+  STARTED
+  ONGOING
+  FINISHED
 }
 
 enum MessageType {
