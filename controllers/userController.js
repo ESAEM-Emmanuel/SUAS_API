@@ -288,6 +288,7 @@ exports.updateUser = async (req, res) => {
     isOwner,
     isActive,
   } = req.body;
+  console.log("updateUser");
 
   try {
     // Validation des données d'entrée
@@ -317,13 +318,14 @@ exports.updateUser = async (req, res) => {
         photo: photo || null,
         phone,
         gender,
-        userRoleId,
+        // userRoleId: userRoleId || null,
+        userRole: userRoleId ? { connect: { id: userRoleId } } : undefined,
         isAdmin: isAdmin !== undefined ? isAdmin : false,
         isStaff: isStaff !== undefined ? isStaff : false,
         isOwner: isOwner !== undefined ? isOwner : false,
         isActive: isActive !== undefined ? isActive : true,
-        approvedById: req.userId,
-        approvedAt: DateTime.now().toJSDate(),
+        updatedBy: req.userId,
+        updatedAt: DateTime.now().toJSDate(),
       },
     });
 
