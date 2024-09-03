@@ -214,6 +214,7 @@ model Message {
   id                String      @id @default(uuid())
   referenceNumber   String      @unique
   content           String
+  tag               Tags?
   urlFile           String?
   messageType       MessageType   @default(TEXT)
   workshopId        String
@@ -304,5 +305,9 @@ enum MessageType {
   TEXT
   FILE
   OTHER
+}
+enum Tags {
+  SUPPORT
+  MODERATOR
 }
 
