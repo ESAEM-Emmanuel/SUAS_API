@@ -1,6 +1,3 @@
-// POSTGRES_PRISMA_URL="postgres://default:hIpE2iGZKa1x@ep-steep-tree-a4ffrcr6-pooler.us-east-1.aws.neon.tech:5432/verceldb?sslmode=require&pgbouncer=true&connect_timeout=15"
-// POSTGRES_URL_NO_SSL="postgres://default:hIpE2iGZKa1x@ep-steep-tree-a4ffrcr6-pooler.us-east-1.aws.neon.tech:5432/verceldb"
-// POSTGRES_URL_NON_POOLING="postgres://default:hIpE2iGZKa1x@ep-steep-tree-a4ffrcr6.us-east-1.aws.neon.tech:5432/verceldb?sslmode=require"
 generator client {
   provider = "prisma-client-js"
 }
