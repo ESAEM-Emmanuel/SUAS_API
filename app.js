@@ -38,7 +38,7 @@ const masterOfCeremonyRoutes = require('./routes/masterOfCeremonyRoutes');
 
 app.use(express.json());
 
-app.use("/",(req, res) => {
+app.get("/",(req, res) => {
   res.send("Events API running");
 });
 app.use('/api/auth', authRoutes);
