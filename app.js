@@ -32,7 +32,7 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const eventRoutes = require('./routes/eventRoutes');
 const workshopRoutes = require('./routes/workshopRoutes');
 const participantRoutes = require('./routes/participantRoutes');
-const messageRoutes = require('./routes/messageRoutes')(io);// Ajout des routes des messages
+// const messageRoutes = require('./routes/messageRoutes')(io);
 const participantRoleRoutes = require('./routes/participantRoleRoutes');
 const masterOfCeremonyRoutes = require('./routes/masterOfCeremonyRoutes');
 
@@ -50,19 +50,19 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/workshops', workshopRoutes);
 app.use('/api/participants', participantRoutes);
-app.use('/api/messages', messageRoutes);
+// app.use('/api/messages', messageRoutes);
 app.use('/api/masterofceremonies', masterOfCeremonyRoutes);
 app.use("/api/usersroles", userRoleRoutes);// route des permissions
 app.use("/api/participantsroles", participantRoleRoutes);// route des permissions
 
 // Socket.io connection
-io.on('connection', (socket) => {
-    console.log('A user connected');
+// io.on('connection', (socket) => {
+//     console.log('A user connected');
     
-    socket.on('disconnect', () => {
-      console.log('User disconnected');
-    });
-  });
+//     socket.on('disconnect', () => {
+//       console.log('User disconnected');
+//     });
+//   });
   
   // Middleware for error handling
   app.use((err, req, res, next) => {

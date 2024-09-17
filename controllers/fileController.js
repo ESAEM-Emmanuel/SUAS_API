@@ -17,8 +17,8 @@ const storage = multer.diskStorage({
         cb(null, Date.now() + path.extname(file.originalname));
       }    
 });
-// exports.upload = multer({ dest: 'uploads/' });
-exports.upload = multer({ storage });
+exports.upload = multer({ dest: 'uploads/' });
+// exports.upload = multer({ storage });
 
 
 exports.uploadFile = (req, res) => {
@@ -30,7 +30,6 @@ exports.uploadFile = (req, res) => {
 
       const uploadedFiles = req.files.map((file) => {
           const filePath = path.join(__dirname, '..', 'uploads', file.filename);
-          console.log(file); // Ajoutez cette ligne pour vérifier les fichiers uploadés
           return {
               filename: file.filename,
               filePath,
