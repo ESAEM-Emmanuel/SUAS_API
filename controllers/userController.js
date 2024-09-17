@@ -108,7 +108,7 @@ exports.createUser = async (req, res) => {
 exports.login = async (req, res) => {
   const { username, password } = req.body;
 
-  // try {
+  try {
     // Recherche de l'utilisateur par nom d'utilisateur
     const user = await prisma.user.findUnique({
       where: { username },
@@ -166,10 +166,10 @@ exports.login = async (req, res) => {
 
     // Réponse avec le token JWT
     return res.status(200).json({ token, current_user });
-  // } catch (error) {
-  //   console.error('Erreur lors de la connexion de l\'utilisateur :', error);
-  //   // return res.status(500).json({ error: 'Erreur interne du serveur' });
-  // }
+  } catch (error) {
+    console.error('Erreur lors de la connexion de l\'utilisateur :', error);
+    return res.status(500).json({ error: 'Erreur interne du serveur' });
+  }
 };
 
 exports.logout = async (req, res) => {
