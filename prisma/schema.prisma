@@ -2,9 +2,13 @@
    provider = "prisma-client-js"
    previewFeatures = ["omitApi"]
  }
+ generator client {
+   provider = env("CLIENT_PROVIDER")
+   previewFeatures = env("CLIENT_FEATURES_PROVIDER")
+ }
 
 datasource db {
-  provider = "postgresql"
+  provider = env("PROVIDER_DATABASE")
   url      = env("DATABASE_URL")
 }
 
