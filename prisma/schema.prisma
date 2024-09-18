@@ -1,8 +1,4 @@
  generator client {
-   provider = "prisma-client-js"
-   previewFeatures = ["omitApi"]
- }
- generator client {
    provider = env("CLIENT_PROVIDER")
    previewFeatures = env("CLIENT_FEATURES_PROVIDER")
  }
