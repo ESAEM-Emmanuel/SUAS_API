@@ -36,7 +36,8 @@ const participantRoutes = require('./routes/participantRoutes');
 const participantRoleRoutes = require('./routes/participantRoleRoutes');
 const masterOfCeremonyRoutes = require('./routes/masterOfCeremonyRoutes');
 
-app.use(express.json());
+// app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get("/",(req, res) => {
   res.send("Events API running");

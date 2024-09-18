@@ -5,21 +5,47 @@ const path = require('path');
 const fs = require('fs');
 require("dotenv").config(); 
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadFile = path.join(__dirname,'..', 'uploads');
-        if(fs.existsSync(uploadFile)){
-            fs.mkdirSync(uploadFile, {recursive: true});
-        }
-        cb(null, uploadFile);
-      },
-      filename: (req, file, cb) => {
-        cb(null, Date.now() + path.extname(file.originalname));
-      }    
-});
-exports.upload = multer({ dest: 'uploads/' });
+// const storage = multer.diskStorage({
+//     destination: (req, file, cb) => {
+//         const uploadFile = path.join(__dirname,'..', 'uploads');
+//         if(fs.existsSync(uploadFile)){
+//             fs.mkdirSync(uploadFile, {recursive: true});
+//         }
+//         cb(null, uploadFile);
+//       },
+//       filename: (req, file, cb) => {
+//         cb(null, file.originalname);
+//       },  
+// });
+// exports.upload = multer({ dest: 'uploads/' });
 // exports.upload = multer({ storage });
 
+const multerOptions = {
+    filename: (req, file, cb) => {
+      cb(null, file.originalname);
+    },
+  }
+
+multerOptions.destination = (req, file, cb) => {
+    const uploadFile = path.join(__dirname,'..', 'uploads');
+    let filePath = uploadFile
+    if(fs.existsSync(filePath)){
+        fs.mkdirSync(filePath, {recursive: true});
+    }
+    cb(null, filePath);
+}
+
+const storage = multer.diskStorage(
+    multerOptions
+);
+
+exports.upload = multer({ 
+    storage, 
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+      cb(null, true);
+    }
+   })
 
 exports.uploadFile = (req, res) => {
   console.log("uploadFile");
@@ -33,7 +59,7 @@ exports.uploadFile = (req, res) => {
           return {
               filename: file.filename,
               filePath,
-              url: `http://${process.env.ADDRESS}:${process.env.PORT}/api/files/download/${path.basename(filePath)}`,
+              url: `https://${process.env.ADDRESS}:${process.env.PORT}/api/files/download/${path.basename(filePath)}`,
           };
       });
 
@@ -78,7 +104,7 @@ exports.uploadFile = (req, res) => {
     
     
     
-    res.json({ fileUrl: `http://${process.env.ADDRESS}:${process.env.PORT}/file/download/${path.basename(filePath)}` });
+    res.json({ fileUrl: `https://${process.env.ADDRESS}:${process.env.PORT}/file/download/${path.basename(filePath)}` });
 }
 
 exports.download = async (req, res) => {
