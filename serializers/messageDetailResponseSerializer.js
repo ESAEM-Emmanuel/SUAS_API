@@ -3,6 +3,7 @@ const messageDetailResponseSerializer = (message) => ({
     referenceNumber: message.referenceNumber,
     workshopId: message.workshopId,
     content: message.content,
+    tag: message.tag,
     urlFile: message.urlFile,
     messageType: message.messageType,
     participantId: message.participantId,

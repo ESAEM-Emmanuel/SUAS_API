@@ -129,7 +129,8 @@ exports.login = async (req, res) => {
     const token = jwt.sign(
       { userId: user.id, username: user.username },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: '1y' } // Token valide pendant un an
+      // { expiresIn: '1h' }
     );
 
     // Recherche des détails de l'utilisateur
@@ -168,6 +169,25 @@ exports.login = async (req, res) => {
   } catch (error) {
     console.error('Erreur lors de la connexion de l\'utilisateur :', error);
     return res.status(500).json({ error: 'Erreur interne du serveur' });
+  }
+};
+
+exports.logout = async (req, res) => {
+  const { token } = req.body;
+  console.log(token);
+
+  try {
+    // Ajout du token à la liste noire
+    await prisma.tokenBlacklist.create({
+      data: {
+        token,
+      },
+    });
+
+    return res.status(200).json({ message: 'Déconnexion réussie' });
+  } catch (error) {
+    console.error('Erreur lors de la déconnexion :', error);
+    return res.status(500).json({ error: 'Erreur lors de la déconnexion' });
   }
 };
 

@@ -364,14 +364,17 @@ exports.createWorkshop = async (req, res) => {
         endDate,
         isOnlineWorkshop,
         isPublic,
+        status
     } = req.body;
+    console.log(req.params)
+    console.log(req.body)
   
     try {
       // Validation des données d'entrée
-      const { error } = workshopCreateSerializer.validate(req.body);
-      if (error) {
-        return res.status(400).json({ error: error.details[0].message });
-      }
+      // const { error } = workshopCreateSerializer.validate(req.body);
+      // if (error) {
+      //   return res.status(400).json({ error: error.details[0].message });
+      // }
 
       // S'assurer que startDate et endDate ne contiennent que la date (sans heure)
       const formattedStartDate = new Date(startDate);
@@ -423,6 +426,7 @@ exports.createWorkshop = async (req, res) => {
             isOnlineWorkshop:isOnlineWorkshop|| false,
             isPublic:isPublic|| false,
             updatedById: req.userId,
+            status,
             updatedAt: DateTime.now().toJSDate(), // Utilisez DateTime.now().toJSDate() pour obtenir une date sérialisable
         },
         include: {

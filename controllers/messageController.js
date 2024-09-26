@@ -316,7 +316,7 @@ const userResponseSerializer = require('../serializers/userResponseSerializer');
 module.exports = (io) => {
   return {
     createMessage: async (req, res) => {
-      const { workshopId, content, urlFile, messageType, participantId } = req.body;
+      const { workshopId, content, tag, urlFile, messageType, participantId } = req.body;
 
       try {
         const { error } = messageCreateSerializer.validate(req.body);
@@ -333,6 +333,7 @@ module.exports = (io) => {
             content,
             messageType,
             participantId,
+            tag: tag || null,
             urlFile: urlFile || null,
             referenceNumber,
             isActive: true,
@@ -480,7 +481,7 @@ module.exports = (io) => {
 
     updateMessage: async (req, res) => {
       const { id } = req.params;
-      const { workshopId, content, urlFile, messageType, participantId } = req.body;
+      const { workshopId, content, tag, urlFile, messageType, participantId } = req.body;
 
       try {
         const { error } = messageCreateSerializer.validate(req.body);
@@ -497,6 +498,7 @@ module.exports = (io) => {
             content,
             messageType,
             participantId,
+            tag: tag || null,
             urlFile: urlFile || null,
             updatedById: req.userId,
             updatedAt: DateTime.now().toJSDate(),
