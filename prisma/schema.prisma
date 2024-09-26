@@ -158,7 +158,7 @@ model Participant {
   name                  String
   description           String
   participantRoleId     String
-  isApproved            Boolean         @default(false)
+  participantStatus            ParticipantStatus         @default(NOTAPPROVED)
   approvedAt            DateTime?
   createdById           String?
   updatedById           String?
@@ -272,4 +272,11 @@ enum MessageType {
 enum Tags {
   SUPPORT
   MODERATOR
+}
+
+enum ParticipantStatus {
+  NOTAPPROVED
+  PENDING
+  REJECTED
+  APPROVED
 }
