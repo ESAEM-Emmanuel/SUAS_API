@@ -47,7 +47,7 @@ exports.createUser = async (req, res) => {
       prisma.user.findUnique({ where: { username: username } }),
       prisma.user.findUnique({ where: { email: email } }),
       prisma.user.findUnique({ where: { phone: phone } }),
-      prisma.user.findUnique({ where: { photo: photo } })
+      // prisma.user.findUnique({ where: { photo: photo } })
     ]);
 
     if (existingUser) {
