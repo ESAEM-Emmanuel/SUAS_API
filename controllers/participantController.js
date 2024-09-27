@@ -18,8 +18,7 @@ exports.createParticipant = async (req, res) => {
     photo,
     description,
     participantRoleId,
-    ownerId,
-    isOnlineParticipation } = req.body;
+    ownerId } = req.body;
 
   try {
     // Validation des données d'entrée
@@ -52,7 +51,7 @@ exports.createParticipant = async (req, res) => {
         description,
         participantRoleId,
         ownerId,
-        isOnlineParticipation,
+        isOnlineParticipation: false,
         referenceNumber,
         isActive: true,
         isActiveMicrophone: false,

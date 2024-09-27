@@ -7,7 +7,7 @@ const participantCreateSerializer = Joi.object({
     photo: Joi.string().optional(),
     participantRoleId: Joi.string().required(),
     ownerId: Joi.string().required(),
-    isOnlineParticipation: Joi.boolean().required(),
+    // isOnlineParticipation: Joi.boolean().required(),
 });
 
 module.exports = participantCreateSerializer;
