@@ -568,6 +568,7 @@ exports.createWorkshop = async (req, res) => {
   
       // Réponse de mise à jour du statut réussie
       return res.status(200).send();
+      
     } catch (error) {
       console.error('Erreur lors de la mise à jour du statut du workshop :', error);
       return res.status(500).json({ error: 'Erreur interne du serveur' });
