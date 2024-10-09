@@ -553,7 +553,8 @@ exports.createWorkshop = async (req, res) => {
   
     try {
       // Mise à jour de la workshop pour une suppression douce
-      const approvedWorkshop = await prisma.workshop.update({
+      const approvedWorkshop = await prisma.workshop
+      .update({
         where: {
           id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
         },
@@ -567,7 +568,7 @@ exports.createWorkshop = async (req, res) => {
       }
   
       // Réponse de mise à jour du statut réussie
-      return res.status(200).send();
+      return res.status(200).send(approvedWorkshop);
       
     } catch (error) {
       console.error('Erreur lors de la mise à jour du statut du workshop :', error);

@@ -56,7 +56,7 @@ exports.createParticipant = async (req, res) => {
         isActive: true,
         isActiveMicrophone: false,
         isHandRaised: false,
-        createdById: req.userId,
+        // createdById: req.userId,
         createdAt: DateTime.now().toJSDate(),
       },
     });
