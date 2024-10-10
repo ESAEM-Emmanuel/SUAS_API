@@ -17,7 +17,7 @@ model User {
   phone                     String             @unique
   password                  String
   name                      String
-  photo                     String?            @unique
+  photo                     String?            
   gender                    Gender?            @default(MALE)
   isStaff                   Boolean            @default(false)
   isAdmin                   Boolean            @default(false)
