@@ -16,13 +16,13 @@ const verifyToken = async (req, res, next) => {
 
   try {
     // Vérifier si le token est blacklisté
-    const blacklistedToken = await prisma.tokenBlacklist.findUnique({
-      where: { token },
-    });
+    // const blacklistedToken = await prisma.tokenBlacklist.findUnique({
+    //   where: { token },
+    // });
 
-    if (blacklistedToken) {
-      return res.status(401).json({ error: 'Token invalide' });
-    }
+    // if (blacklistedToken) {
+    //   return res.status(401).json({ error: 'Token invalide' });
+    // }
 
     // Vérifier le token JWT
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
