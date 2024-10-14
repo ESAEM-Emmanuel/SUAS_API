@@ -47,28 +47,64 @@ exports.upload = multer({
     }
    })
 
+// exports.uploadFile = (req, res) => {
+//   console.log("uploadFile");
+//   try {
+//       if (!req.files || Object.keys(req.files).length === 0) {
+//           return res.status(400).json({ message: 'No files uploaded.' });
+//       }
+
+//       const uploadedFiles = req.files.map((file) => {
+//           const filePath = path.join(__dirname, '..', 'uploads', file.filename);
+//           return {
+//               filename: file.filename,
+//               filePath,
+//               url: `https://${process.env.ADDRESS}:${process.env.PORT}/api/files/download/${path.basename(filePath)}`,
+//           };
+//       });
+
+//       return res.send(uploadedFiles);
+//   } catch (error) {
+//       console.error('Error uploading files:', error);
+//       res.status(500).json({ message: 'Error uploading files.' });
+//   }
+// };
 exports.uploadFile = (req, res) => {
-  console.log("uploadFile");
-  try {
-      if (!req.files || Object.keys(req.files).length === 0) {
-          return res.status(400).json({ message: 'No files uploaded.' });
-      }
-
-      const uploadedFiles = req.files.map((file) => {
-          const filePath = path.join(__dirname, '..', 'uploads', file.filename);
-          return {
-              filename: file.filename,
-              filePath,
-              url: `https://${process.env.ADDRESS}:${process.env.PORT}/api/files/download/${path.basename(filePath)}`,
-          };
-      });
-
-      return res.send(uploadedFiles);
-  } catch (error) {
-      console.error('Error uploading files:', error);
-      res.status(500).json({ message: 'Error uploading files.' });
-  }
-};
+    console.log("uploadFile");
+    try {
+        if (!req.files || Object.keys(req.files).length === 0) {
+            return res.status(400).json({ message: 'No files uploaded.' });
+        }
+  
+        const uploadedFiles = req.files.map((file) => {
+            // Obtenir la date et l'heure actuelles
+            const currentDateTime = new Date().toISOString().replace(/:/g, '-'); // Formatage pour éviter les caractères non autorisés
+  
+            // Extraire l'extension du fichier
+            const fileExtension = path.extname(file.filename);
+            
+            // Construire le nouveau nom de fichier avec l'horodatage
+            const newFilename = `${path.basename(file.filename, fileExtension)}_${currentDateTime}${fileExtension}`;
+            
+            // Définir le chemin de destination
+            const filePath = path.join(__dirname, '..', 'uploads', newFilename);
+            
+            // Déplacer/renommer le fichier uploadé
+            fs.renameSync(file.path, filePath);
+  
+            return {
+                filename: newFilename,
+                filePath,
+                url: `https://${process.env.ADDRESS}:${process.env.PORT}/api/files/download/${newFilename}`,
+            };
+        });
+  
+        return res.send(uploadedFiles);
+    } catch (error) {
+        console.error('Error uploading files:', error);
+        res.status(500).json({ message: 'Error uploading files.' });
+    }
+  };
 
   
   exports.toExcel=async(req, res)=>{

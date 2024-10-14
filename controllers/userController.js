@@ -8,7 +8,103 @@ const userCreateSerializer = require('../serializers/userCreateSerializer');
 const userResponseSerializer = require('../serializers/userResponseSerializer');
 const userDetailResponseSerializer = require('../serializers/userDetailResponseSerializer');
 
-// Fonction pour créer un nouvel utilisateur
+// // Fonction pour créer un nouvel utilisateur
+// exports.createUser = async (req, res) => {
+//   const {
+//     username,
+//     email,
+//     password,
+//     name,
+//     surname,
+//     photo,
+//     phone,
+//     gender,
+//     userRoleId,
+//     isAdmin,
+//     isStaff,
+//     isOwner,
+//     isActive,
+//   } = req.body;
+
+//   try {
+//     // Validation des données d'entrée
+//     const { error } = userCreateSerializer.validate(req.body);
+//     if (error) {
+//       return res.status(400).json({ error: error.details[0].message });
+//     }
+
+//     // Vérification de la valeur du genre
+//     if (gender && !['MALE', 'FEMALE', 'OTHER'].includes(gender)) {
+//       return res.status(400).json({ error: 'Gender must be: MALE, FEMALE, or OTHER' });
+//     }
+
+//     if (!password) {
+//       return res.status(400).json({ error: 'Provide the password!' });
+//     }
+
+//     // Vérification des contraintes d'unicité
+//     const [existingUser, existingEmail, existingPhone, existingPhoto] = await Promise.all([
+//       prisma.user.findUnique({ where: { username: username } }),
+//       prisma.user.findUnique({ where: { email: email } }),
+//       prisma.user.findUnique({ where: { phone: phone } }),
+//       prisma.user.findUnique({ where: { photo: photo } })
+//     ]);
+
+//     if (existingUser) {
+//       return res.status(400).json({ error: 'username already exists' });
+//     }
+
+//     if (existingPhone) {
+//       return res.status(400).json({ error: 'Phone already exists' });
+//     }
+
+//     if (existingEmail) {
+//       return res.status(400).json({ error: 'Email already exists' });
+//     }
+//     if (existingPhoto) {
+//       return res.status(400).json({ error: 'Photo already exists' });
+//     }
+
+
+//     // Génération du numéro de référence unique
+//     const referenceNumber = await generateUniqueReferenceNumber(prisma.user);
+
+//     // Hashage du mot de passe
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     // Création de l'utilisateur avec Prisma
+//     const newUser = await prisma.user.create({
+//       data: {
+//         username,
+//         referenceNumber,
+//         email,
+//         password: hashedPassword,
+//         name,
+//         surname: surname || null,
+//         photo: photo || null,
+//         phone,
+//         gender,
+//         userRoleId,
+//         isAdmin: isAdmin || false,
+//         isStaff: isStaff || false,
+//         isOwner: isOwner || false,
+//         isActive: isActive || true,
+//         createdById: req.userId,
+//         createdAt: DateTime.now().toJSDate(),
+//       },
+//     });
+
+//     // Formatage de la réponse
+//     const formattedUser = userResponseSerializer(newUser);
+
+//     // Réponse avec l'utilisateur créé
+//     return res.status(201).json(formattedUser);
+//   } catch (error) {
+//     console.error('Erreur lors de la création de l\'utilisateur :', error);
+//     return res.status(500).json({ error: 'Erreur interne du serveur' });
+//   }
+// };
+
 exports.createUser = async (req, res) => {
   const {
     username,
@@ -38,33 +134,29 @@ exports.createUser = async (req, res) => {
       return res.status(400).json({ error: 'Gender must be: MALE, FEMALE, or OTHER' });
     }
 
-    if (!password) {
-      return res.status(400).json({ error: 'Provide the password!' });
-    }
-
     // Vérification des contraintes d'unicité
-    const [existingUser, existingEmail, existingPhone, existingPhoto] = await Promise.all([
-      prisma.user.findUnique({ where: { username: username } }),
-      prisma.user.findUnique({ where: { email: email } }),
-      prisma.user.findUnique({ where: { phone: phone } }),
-      // prisma.user.findUnique({ where: { photo: photo } })
-    ]);
+    const existingUsers = await prisma.user.findMany({
+      where: {
+        OR: [
+          { username: username },
+          { email: email },
+          { phone: phone },
+          { photo: photo }
+        ]
+      }
+    });
 
-    if (existingUser) {
-      return res.status(400).json({ error: 'username already exists' });
-    }
+    if (existingUsers.length) {
+      const conflicts = [];
+      existingUsers.forEach(user => {
+        if (user.username === username) conflicts.push('Username already exists');
+        if (user.email === email) conflicts.push('Email already exists');
+        if (user.phone === phone) conflicts.push('Phone already exists');
+        if (user.photo === photo) conflicts.push('Photo already exists');
+      });
 
-    if (existingPhone) {
-      return res.status(400).json({ error: 'Phone already exists' });
+      return res.status(400).json({ error: conflicts.join(', ') });
     }
-
-    if (existingEmail) {
-      return res.status(400).json({ error: 'Email already exists' });
-    }
-    if (existingPhoto) {
-      return res.status(400).json({ error: 'Photo already exists' });
-    }
-
 
     // Génération du numéro de référence unique
     const referenceNumber = await generateUniqueReferenceNumber(prisma.user);
@@ -104,6 +196,7 @@ exports.createUser = async (req, res) => {
     return res.status(500).json({ error: 'Erreur interne du serveur' });
   }
 };
+
 
 exports.login = async (req, res) => {
   const { username, password } = req.body;
