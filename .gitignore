@@ -2,4 +2,6 @@ node_modules
 # Keep environment variables out of version control
 uploads
 .env
+.env.local
+.env.*.local
 prisma/migrations/

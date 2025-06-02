@@ -200,7 +200,7 @@ exports.createUser = async (req, res) => {
 
 exports.login = async (req, res) => {
   const { username, password } = req.body;
-
+  console.log(username , password)
   try {
     // Recherche de l'utilisateur par nom d'utilisateur
     const user = await prisma.user.findUnique({
@@ -287,24 +287,217 @@ exports.logout = async (req, res) => {
 
 // Fonction pour récupérer tous les utilisateurs avec pagination
 exports.getUsers = async (req, res) => {
-  const { page = 1, limit = 100 } = req.query;
-
   try {
-    const users = await prisma.user.findMany({
-      skip: (page - 1) * limit,
-      take: parseInt(limit),
-      where: {
-        isActive: true,
-      },
-      orderBy: {
-        name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
-      },
-    });
+    // Liste des champs de tri valides
+    const validSortFields = [
+      'id',
+      'username',
+      'referenceNumber',
+      'email',
+      'phone',
+      'name',
+      'photo',
+      'gender',
+      'isStaff',
+      'isAdmin',
+      'isOwner',
+      'isActive',
+      'createdBy',
+      'updatedBy',
+      'userRoleId',
+      'createdAt',
+      'updatedAt',
+      'surname'
+    ];
 
-    const formatedUsers = users.map(userResponseSerializer);
-    return res.status(200).json(formatedUsers);
+    // Récupération des paramètres de pagination depuis la requête
+    const page = parseInt(req.query.page) || 1;
+    const requestedLimit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    const requestedSortBy = req.query.sortBy || 'createdAt';
+    const order = req.query.order?.toUpperCase() === 'ASC' ? 'asc' : 'desc';
+
+    // Récupération des paramètres de filtrage supplémentaires
+    const gender = req.query.gender ? req.query.gender.toUpperCase() : undefined;
+    const isStaff = req.query.isStaff !== undefined ? req.query.isStaff === 'true' : undefined;
+    const isAdmin = req.query.isAdmin !== undefined ? req.query.isAdmin === 'true' : undefined;
+    const isOwner = req.query.isOwner !== undefined ? req.query.isOwner === 'true' : undefined;
+    const isActive = req.query.isActive !== undefined ? req.query.isActive === 'true' : undefined;
+    const createdBy = req.query.createdBy || undefined;
+    const updatedBy = req.query.updatedBy || undefined;
+
+    // Validation du champ de tri
+    const sortBy = validSortFields.includes(requestedSortBy) ? requestedSortBy : 'createdAt';
+
+    if (requestedSortBy && !validSortFields.includes(requestedSortBy)) {
+      console.warn(`Tentative de tri sur un champ invalide: ${requestedSortBy}. Utilisation de createdAt par défaut.`);
+    }
+
+    // Validation du genre
+    if (gender && !['MALE', 'FEMALE', 'OTHER'].includes(gender)) {
+      return res.status(400).json({
+        error: 'La valeur de gender doit être MALE, FEMALE ou OTHER'
+      });
+    }
+
+    // Paramètres de filtrage par date
+    const createdAtStart = req.query.createdAtStart ? new Date(req.query.createdAtStart) : null;
+    const createdAtEnd = req.query.createdAtEnd ? new Date(req.query.createdAtEnd) : null;
+    const updatedAtStart = req.query.updatedAtStart ? new Date(req.query.updatedAtStart) : null;
+    const updatedAtEnd = req.query.updatedAtEnd ? new Date(req.query.updatedAtEnd) : null;
+    const createdAt = req.query.createdAt ? new Date(req.query.createdAt) : null;
+    const updatedAt = req.query.updatedAt ? new Date(req.query.updatedAt) : null;
+
+    // Construction de la condition de recherche
+    const whereCondition = {
+      OR: [
+        { username: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: 'insensitive' } },
+        { surname: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+      ],
+      AND: []
+    };
+
+    // Ajout des filtres booléens et autres
+    if (isActive !== undefined) whereCondition.isActive = isActive;
+    if (isStaff !== undefined) whereCondition.isStaff = isStaff;
+    if (isAdmin !== undefined) whereCondition.isAdmin = isAdmin;
+    if (isOwner !== undefined) whereCondition.isOwner = isOwner;
+    if (gender) whereCondition.gender = gender;
+    if (createdBy) whereCondition.createdBy = createdBy;
+    if (updatedBy) whereCondition.updatedBy = updatedBy;
+
+    // Ajout des conditions de date si présentes
+    if (createdAt) {
+      whereCondition.AND.push({
+        createdAt: {
+          gte: createdAt,
+          lt: new Date(createdAt.getTime() + 24 * 60 * 60 * 1000)
+        }
+      });
+    } else if (createdAtStart || createdAtEnd) {
+      whereCondition.AND.push({
+        createdAt: {
+          ...(createdAtStart && { gte: createdAtStart }),
+          ...(createdAtEnd && { lte: createdAtEnd })
+        }
+      });
+    }
+
+    if (updatedAt) {
+      whereCondition.AND.push({
+        updatedAt: {
+          gte: updatedAt,
+          lt: new Date(updatedAt.getTime() + 24 * 60 * 60 * 1000)
+        }
+      });
+    } else if (updatedAtStart || updatedAtEnd) {
+      whereCondition.AND.push({
+        updatedAt: {
+          ...(updatedAtStart && { gte: updatedAtStart }),
+          ...(updatedAtEnd && { lte: updatedAtEnd })
+        }
+      });
+    }
+
+    // Si aucune condition AND n'est ajoutée, supprimez le tableau AND
+    if (whereCondition.AND.length === 0) {
+      delete whereCondition.AND;
+    }
+
+    // Récupération du nombre total d'utilisateurs actifs
+    const total = await prisma.user.count({ where: whereCondition });
+
+    // Protection contre les performances
+    const MAX_USERS_FOR_UNLIMITED_QUERY = 1000;
+    if (requestedLimit === -1 && total > MAX_USERS_FOR_UNLIMITED_QUERY) {
+      return res.status(400).json({
+        error: `La récupération de tous les utilisateurs est limitée à ${MAX_USERS_FOR_UNLIMITED_QUERY} utilisateurs. Veuillez utiliser la pagination.`
+      });
+    }
+
+    // Configuration de la requête
+    let findManyOptions = {
+      where: whereCondition,
+      orderBy: {
+        [sortBy]: order
+      },
+      include: {
+        userRole: true
+      }
+    };
+
+    // Ajouter la pagination seulement si limit n'est pas -1
+    if (requestedLimit !== -1) {
+      findManyOptions = {
+        ...findManyOptions,
+        skip: (page - 1) * requestedLimit,
+        take: requestedLimit
+      };
+    }
+
+    // Récupération des utilisateurs
+    const users = await prisma.user.findMany(findManyOptions);
+
+    // Formatage de la réponse
+    const formattedUsers = users.map(user => userResponseSerializer(user));
+
+    // Préparation de la réponse
+    let paginationData;
+    
+    if (requestedLimit === -1) {
+      // Cas spécial pour limit=-1
+      paginationData = {
+        total: total,
+        page: null,
+        limit: null,
+        totalPages: null,
+        hasNextPage: false,
+        hasPreviousPage: false
+      };
+    } else {
+      // Calculs normaux de pagination pour les autres cas
+      paginationData = {
+        total: total,
+        page: page,
+        limit: requestedLimit,
+        totalPages: Math.ceil(total / requestedLimit),
+        hasNextPage: page < Math.ceil(total / requestedLimit),
+        hasPreviousPage: page > 1
+      };
+    }
+
+    return res.status(200).json({
+      data: formattedUsers,
+      pagination: paginationData,
+      filters: {
+        search,
+        sortBy,
+        order,
+        dates: {
+          createdAt,
+          createdAtStart,
+          createdAtEnd,
+          updatedAt,
+          updatedAtStart,
+          updatedAtEnd
+        },
+        attributes: {
+          gender,
+          isStaff,
+          isAdmin,
+          isOwner,
+          isActive,
+          createdBy,
+          updatedBy
+        }
+      },
+      validSortFields
+    });
   } catch (error) {
-    console.error('Erreur lors de la récupération des utilisateurs :', error);
+    console.error('Erreur lors de la récupération des utilisateurs:', error);
     return res.status(500).json({ error: 'Erreur interne du serveur' });
   }
 };
