@@ -8,27 +8,27 @@ const permissionCreateSerializer = require('../serializers/permissionCreateSeria
 const permissionResponseSerializer = require('../serializers/permissionResponseSerializer');
 const permissionDetailResponseSerializer = require('../serializers/permissionDetailResponseSerializer');
 const userResponseSerializer = require('../serializers/userResponseSerializer');
+const ResponseHandler = require('../utils/responseHandler');
 
 // Fonction pour créer un nouvel Permission
 exports.createPermission = async (req, res) => {
-  const { name} = req.body;
+  const { name } = req.body;
 
   try {
     // Validation des données d'entrée
     const { error } = permissionCreateSerializer.validate(req.body);
     if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+      return ResponseHandler.error(res, error.details[0].message, 'BAD_REQUEST');
     }
 
     // Vérification des contraintes d'unicité
     const existingPermission = await prisma.permission.findUnique({ where: { name } });
     if (existingPermission) {
-      return res.status(400).json({ error: 'Permission already exists' });
+      return ResponseHandler.error(res, 'Cette permission existe déjà', 'CONFLICT');
     }
 
     // Génération du numéro de référence unique
     const referenceNumber = await generateUniqueReferenceNumber(prisma.permission);
-    console.log(referenceNumber);
 
     // Création de la permission avec Prisma
     const newPermission = await prisma.permission.create({
@@ -40,28 +40,20 @@ exports.createPermission = async (req, res) => {
         createdAt: DateTime.now().toJSDate(),
       },
     });
-    // Réponse avec la permission créée
-    const formattedPermission = permissionResponseSerializer(newPermission);
-    return res.status(201).json(formattedPermission);
+
+    return ResponseHandler.success(res, permissionResponseSerializer(newPermission), 'CREATED');
   } catch (error) {
-    console.error('Erreur lors de la création de la permission :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la création de la permission:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la création de la permission');
   }
 };
 
 // Fonction pour récupérer tous les permissions avec pagination
 exports.getPermissions = async (req, res) => {
   try {
-    // Liste des champs de tri valides
     const validSortFields = [
-      'id',
-      'referenceNumber',
-      'name',
-      'createdById',
-      'updatedById',
-      'isActive',
-      'createdAt',
-      'updatedAt'
+      'id', 'referenceNumber', 'name', 'createdById',
+      'updatedById', 'isActive', 'createdAt', 'updatedAt'
     ];
 
     // Récupération des paramètres de pagination depuis la requête
@@ -71,11 +63,6 @@ exports.getPermissions = async (req, res) => {
     const requestedSortBy = req.query.sortBy || 'createdAt';
     const order = req.query.order?.toUpperCase() === 'ASC' ? 'asc' : 'desc';
 
-    // Récupération des paramètres de filtrage supplémentaires
-    const isActive = req.query.isActive !== undefined ? req.query.isActive === 'true' : undefined;
-    const createdById = req.query.createdById || undefined;
-    const updatedById = req.query.updatedById || undefined;
-
     // Validation du champ de tri
     const sortBy = validSortFields.includes(requestedSortBy) ? requestedSortBy : 'createdAt';
 
@@ -83,65 +70,8 @@ exports.getPermissions = async (req, res) => {
       console.warn(`Tentative de tri sur un champ invalide: ${requestedSortBy}. Utilisation de createdAt par défaut.`);
     }
 
-    // Paramètres de filtrage par date
-    const createdAtStart = req.query.createdAtStart ? new Date(req.query.createdAtStart) : null;
-    const createdAtEnd = req.query.createdAtEnd ? new Date(req.query.createdAtEnd) : null;
-    const updatedAtStart = req.query.updatedAtStart ? new Date(req.query.updatedAtStart) : null;
-    const updatedAtEnd = req.query.updatedAtEnd ? new Date(req.query.updatedAtEnd) : null;
-    const createdAt = req.query.createdAt ? new Date(req.query.createdAt) : null;
-    const updatedAt = req.query.updatedAt ? new Date(req.query.updatedAt) : null;
-
-    // Construction de la condition de recherche
-    const whereCondition = {
-      OR: [
-        { name: { contains: search, mode: 'insensitive' } },
-        { referenceNumber: { contains: search, mode: 'insensitive' } }
-      ],
-      AND: []
-    };
-
-    // Ajout des filtres booléens et autres
-    if (isActive !== undefined) whereCondition.isActive = isActive;
-    if (createdById) whereCondition.createdById = createdById;
-    if (updatedById) whereCondition.updatedById = updatedById;
-
-    // Ajout des conditions de date si présentes
-    if (createdAt) {
-      whereCondition.AND.push({
-        createdAt: {
-          gte: createdAt,
-          lt: new Date(createdAt.getTime() + 24 * 60 * 60 * 1000)
-        }
-      });
-    } else if (createdAtStart || createdAtEnd) {
-      whereCondition.AND.push({
-        createdAt: {
-          ...(createdAtStart && { gte: createdAtStart }),
-          ...(createdAtEnd && { lte: createdAtEnd })
-        }
-      });
-    }
-
-    if (updatedAt) {
-      whereCondition.AND.push({
-        updatedAt: {
-          gte: updatedAt,
-          lt: new Date(updatedAt.getTime() + 24 * 60 * 60 * 1000)
-        }
-      });
-    } else if (updatedAtStart || updatedAtEnd) {
-      whereCondition.AND.push({
-        updatedAt: {
-          ...(updatedAtStart && { gte: updatedAtStart }),
-          ...(updatedAtEnd && { lte: updatedAtEnd })
-        }
-      });
-    }
-
-    // Si aucune condition AND n'est ajoutée, supprimez le tableau AND
-    if (whereCondition.AND.length === 0) {
-      delete whereCondition.AND;
-    }
+    // Construction des conditions de recherche et de filtrage
+    const whereCondition = buildWhereCondition(req.query);
 
     // Récupération du nombre total de permissions
     const total = await prisma.permission.count({ where: whereCondition });
@@ -149,17 +79,17 @@ exports.getPermissions = async (req, res) => {
     // Protection contre les performances
     const MAX_FOR_UNLIMITED_QUERY = 1000;
     if (requestedLimit === -1 && total > MAX_FOR_UNLIMITED_QUERY) {
-      return res.status(400).json({
-        error: `La récupération de toutes les permissions est limitée à ${MAX_FOR_UNLIMITED_QUERY} entrées. Veuillez utiliser la pagination.`
-      });
+      return ResponseHandler.error(
+        res,
+        `La récupération de toutes les permissions est limitée à ${MAX_FOR_UNLIMITED_QUERY} entrées. Veuillez utiliser la pagination.`,
+        'BAD_REQUEST'
+      );
     }
 
     // Configuration de la requête
     const findManyOptions = {
       where: whereCondition,
-      orderBy: {
-        [sortBy]: order
-      },
+      orderBy: { [sortBy]: order },
       include: {
         created: true,
         updated: true
@@ -188,50 +118,17 @@ exports.getPermissions = async (req, res) => {
     });
 
     // Préparation de la réponse
-    const paginationData = requestedLimit === -1
-      ? {
-          total,
-          page: null,
-          limit: null,
-          totalPages: null,
-          hasNextPage: false,
-          hasPreviousPage: false
-        }
-      : {
-          total,
-          page,
-          limit: requestedLimit,
-          totalPages: Math.ceil(total / requestedLimit),
-          hasNextPage: page < Math.ceil(total / requestedLimit),
-          hasPreviousPage: page > 1
-        };
-
-    return res.status(200).json({
+    const response = {
       data: formattedPermissions,
-      pagination: paginationData,
-      filters: {
-        search,
-        sortBy,
-        order,
-        dates: {
-          createdAt,
-          createdAtStart,
-          createdAtEnd,
-          updatedAt,
-          updatedAtStart,
-          updatedAtEnd
-        },
-        attributes: {
-          isActive,
-          createdById,
-          updatedById
-        }
-      },
+      pagination: buildPaginationData(total, page, requestedLimit),
+      filters: buildFiltersData(req.query, sortBy, order),
       validSortFields
-    });
+    };
+
+    return ResponseHandler.success(res, response);
   } catch (error) {
     console.error('Erreur lors de la récupération des permissions:', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    return ResponseHandler.error(res, 'Erreur lors de la récupération des permissions');
   }
 };
 
@@ -243,77 +140,65 @@ exports.getPermissionsInactifs = async (req, res) => {
     const permissions = await prisma.permission.findMany({
       skip: (page - 1) * limit,
       take: parseInt(limit),
-      where: {
-        isActive: false,
-      },
-      orderBy: {
-        name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
-      },
+      where: { isActive: false },
+      orderBy: { name: 'asc' },
     });
 
-    const formatedPermissions = permissions.map(permissionResponseSerializer);
-    return res.status(200).json(formatedPermissions);
+    const formattedPermissions = permissions.map(permissionResponseSerializer);
+    return ResponseHandler.success(res, formattedPermissions);
   } catch (error) {
-    console.error('Erreur lors de la récupération des Permissions :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la récupération des permissions inactives:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la récupération des permissions inactives');
   }
 };
 
 // Fonction pour récupérer une permission par son ID
 exports.getPermission = async (req, res) => {
-  console.log("getpermission ok");
   const { id } = req.params;
 
   try {
     const permission = await prisma.permission.findUnique({
-      where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-      },
+      where: { id },
       include: {
         created: true,
         updated: true,
-    },
+      },
     });
 
-    // Vérification de l'existence de la permission
     if (!permission) {
-      return res.status(404).json({ error: 'Permission non trouvé' });
-    }
-    if(permission.created){
-      permission.created=userResponseSerializer(permission.created);
-    }
-    if(permission.updated){
-      permission.updated=userResponseSerializer(permission.updated);
+      return ResponseHandler.error(res, 'Permission non trouvée', 'NOT_FOUND');
     }
 
-    // Réponse avec la permission trouvé
-    return res.status(200).json(permissionDetailResponseSerializer(permission));
+    // Formatage des relations
+    if (permission.created) {
+      permission.created = userResponseSerializer(permission.created);
+    }
+    if (permission.updated) {
+      permission.updated = userResponseSerializer(permission.updated);
+    }
+
+    return ResponseHandler.success(res, permissionDetailResponseSerializer(permission));
   } catch (error) {
-    console.error('Erreur lors de la récupération de la permission :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la récupération de la permission:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la récupération de la permission');
   }
 };
 
 // Fonction pour mettre à jour une permission
 exports.updatePermission = async (req, res) => {
   const { id } = req.params;
-  const {
-    name,
-    
-  } = req.body;
+  const { name } = req.body;
 
   try {
     // Validation des données d'entrée
     const { error } = permissionCreateSerializer.validate(req.body);
     if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+      return ResponseHandler.error(res, error.details[0].message, 'BAD_REQUEST');
     }
 
     // Mise à jour de la permission
-    const updatedPermission = await prisma.permission.update({
-      where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-      },
+    await prisma.permission.update({
+      where: { id },
       data: {
         name,
         updatedById: req.userId,
@@ -321,57 +206,52 @@ exports.updatePermission = async (req, res) => {
       },
     });
 
-    // Récupération de la permission mis à jour
+    // Récupération de la permission mise à jour
     const permission = await prisma.permission.findUnique({
-      where: {
-        id: id,
-      },
+      where: { id },
       include: {
         created: true,
         updated: true,
-    },
+      },
     });
 
     if (!permission) {
-      return res.status(404).json({ error: 'Permission non trouvé' });
-    }
-    if(permission.created){
-      permission.created=userResponseSerializer(permission.created);
-    }
-    if(permission.updated){
-      permission.updated=userResponseSerializer(permission.updated);
+      return ResponseHandler.error(res, 'Permission non trouvée', 'NOT_FOUND');
     }
 
-    // Réponse avec la permission trouvé
-    return res.status(200).json(permissionDetailResponseSerializer(permission));
+    // Formatage des relations
+    if (permission.created) {
+      permission.created = userResponseSerializer(permission.created);
+    }
+    if (permission.updated) {
+      permission.updated = userResponseSerializer(permission.updated);
+    }
+
+    return ResponseHandler.success(res, permissionDetailResponseSerializer(permission));
   } catch (error) {
-    console.error('Erreur lors de la mise à jour de la permission :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la mise à jour de la permission:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la mise à jour de la permission');
   }
 };
 
 // Fonction pour supprimer une permission
 exports.deletePermission = async (req, res) => {
   const { id } = req.params;
-  // Recherche de l'permission par nom d'permission
-  const queryPermission = await prisma.permission.findUnique({
-    where: {
-      id:id,
-      isActive:true
-    },
-  });
-
-  // Vérification de l'permission
-  if (!queryPermission) {
-    return res.status(404).json({ error: 'Permission non trouvé' });
-  }
 
   try {
-    // Mise à jour de la permission pour une suppression douce
-    const deletedPermission = await prisma.permission.update({
+    const permission = await prisma.permission.findUnique({
       where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
+        id,
+        isActive: true
       },
+    });
+
+    if (!permission) {
+      return ResponseHandler.error(res, 'Permission non trouvée', 'NOT_FOUND');
+    }
+
+    await prisma.permission.update({
+      where: { id },
       data: {
         isActive: false,
         updatedById: req.userId,
@@ -379,15 +259,10 @@ exports.deletePermission = async (req, res) => {
       },
     });
 
-    if (!deletedPermission) {
-      return res.status(404).json({ error: 'Permission non trouvé' });
-    }
-
-    // Réponse de suppression réussie
-    return res.status(204).send();
+    return ResponseHandler.noContent(res);
   } catch (error) {
-    console.error('Erreur lors de la suppression de la permission :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la suppression de la permission:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la suppression de la permission');
   }
 };
 
@@ -395,34 +270,20 @@ exports.deletePermission = async (req, res) => {
 exports.restorePermission = async (req, res) => {
   const { id } = req.params;
 
-  // Recherche de l'permission par nom d'permission
-  const queryPermission = await prisma.permission.findUnique({
-    where: {
-      id:id,
-      isActive:false
-    },
-  });
-
-  // Vérification de l'permission
-  if (!queryPermission) {
-    return res.status(404).json({ error: 'Permission non trouvé' });
-  }
-
   try {
-    // Vérification de l'existence de la permission
-    const restoredPermission = await prisma.permission.findUnique({
-      where: { id: id },
+    const permission = await prisma.permission.findUnique({
+      where: {
+        id,
+        isActive: false
+      },
     });
 
-    if (!restoredPermission) {
-      return res.status(404).json({ error: 'Permission non trouvé' });
+    if (!permission) {
+      return ResponseHandler.error(res, 'Permission non trouvée', 'NOT_FOUND');
     }
 
-    // Mise à jour de la permission pour le restorer
     await prisma.permission.update({
-      where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-      },
+      where: { id },
       data: {
         isActive: true,
         updatedById: req.userId,
@@ -430,13 +291,149 @@ exports.restorePermission = async (req, res) => {
       },
     });
 
-    // Réponse de restauration réussie
-    return res.status(200).send();
+    return ResponseHandler.success(res, null, 'OK');
   } catch (error) {
-    console.error('Erreur lors de la restauration de la permission :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la restauration de la permission:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la restauration de la permission');
   }
 };
+
+// Fonctions utilitaires
+function buildWhereCondition(query) {
+  const {
+    search = '',
+    isActive,
+    createdById,
+    updatedById
+  } = query;
+
+  const whereCondition = {
+    OR: [
+      { name: { contains: search, mode: 'insensitive' } },
+      { referenceNumber: { contains: search, mode: 'insensitive' } }
+    ],
+    AND: []
+  };
+
+  // Ajout des filtres booléens et autres
+  if (isActive !== undefined) whereCondition.isActive = isActive === 'true';
+  if (createdById) whereCondition.createdById = createdById;
+  if (updatedById) whereCondition.updatedById = updatedById;
+
+  // Gestion des dates
+  addDateConditions(whereCondition, query);
+
+  if (whereCondition.AND.length === 0) {
+    delete whereCondition.AND;
+  }
+
+  return whereCondition;
+}
+
+function addDateConditions(whereCondition, query) {
+  const {
+    createdAt,
+    updatedAt,
+    createdAtStart,
+    createdAtEnd,
+    updatedAtStart,
+    updatedAtEnd
+  } = query;
+
+  if (createdAt) {
+    const startOfDay = new Date(createdAt);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+    whereCondition.AND.push({
+      createdAt: {
+        gte: startOfDay,
+        lt: endOfDay
+      }
+    });
+  } else if (createdAtStart || createdAtEnd) {
+    whereCondition.AND.push({
+      createdAt: {
+        ...(createdAtStart && { gte: new Date(createdAtStart) }),
+        ...(createdAtEnd && { lte: new Date(createdAtEnd) })
+      }
+    });
+  }
+
+  if (updatedAt) {
+    const startOfDay = new Date(updatedAt);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+    whereCondition.AND.push({
+      updatedAt: {
+        gte: startOfDay,
+        lt: endOfDay
+      }
+    });
+  } else if (updatedAtStart || updatedAtEnd) {
+    whereCondition.AND.push({
+      updatedAt: {
+        ...(updatedAtStart && { gte: new Date(updatedAtStart) }),
+        ...(updatedAtEnd && { lte: new Date(updatedAtEnd) })
+      }
+    });
+  }
+}
+
+function buildPaginationData(total, page, limit) {
+  if (limit === -1) {
+    return {
+      total,
+      page: null,
+      limit: null,
+      totalPages: null,
+      hasNextPage: false,
+      hasPreviousPage: false
+    };
+  }
+
+  return {
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+    hasNextPage: page < Math.ceil(total / limit),
+    hasPreviousPage: page > 1
+  };
+}
+
+function buildFiltersData(query, sortBy, order) {
+  const {
+    search,
+    createdAt,
+    createdAtStart,
+    createdAtEnd,
+    updatedAt,
+    updatedAtStart,
+    updatedAtEnd,
+    isActive,
+    createdById,
+    updatedById
+  } = query;
+
+  return {
+    search,
+    sortBy,
+    order,
+    dates: {
+      createdAt,
+      createdAtStart,
+      createdAtEnd,
+      updatedAt,
+      updatedAtStart,
+      updatedAtEnd
+    },
+    attributes: {
+      isActive,
+      createdById,
+      updatedById
+    }
+  };
+}
 
 // Export des fonctions du contrôleur
 module.exports = exports;

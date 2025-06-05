@@ -8,6 +8,7 @@ const userRoleCreateSerializer = require('../serializers/userRoleCreateSerialize
 const userRoleResponseSerializer = require('../serializers/userRoleResponseSerializer');
 const userRoleDetailResponseSerializer = require('../serializers/userRoleDetailResponseSerializer');
 const userResponseSerializer = require('../serializers/userResponseSerializer');
+const ResponseHandler = require('../utils/responseHandler');
 
 // Fonction pour créer un nouvel userRole
 exports.createUserRole = async (req, res) => {
@@ -18,14 +19,14 @@ exports.createUserRole = async (req, res) => {
     // Validation des données d'entrée
     const { error } = userRoleCreateSerializer.validate(req.body);
     if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+      return ResponseHandler.error(res, error.details[0].message, 'BAD_REQUEST');
     }
 
     // Vérification des contraintes d'unicité
     console.log(userRoleCreateSerializer.validate(req.body));
     const existinguserRole = await prisma.userRole.findUnique({ where: { name } });
     if (existinguserRole) {
-      return res.status(400).json({ error: 'userRole already exists' });
+      return ResponseHandler.error(res, 'Ce rôle utilisateur existe déjà', 'CONFLICT');
     }
 
     // Génération du numéro de référence unique
@@ -43,10 +44,10 @@ exports.createUserRole = async (req, res) => {
       },
     });
     // Réponse avec la userRole créée
-    return res.status(201).json(newuserRole);
+    return ResponseHandler.success(res, userRoleResponseSerializer(newuserRole), 'CREATED');
   } catch (error) {
     console.error('Erreur lors de la création de la userRole :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    return ResponseHandler.error(res, 'Erreur lors de la création de la userRole');
   }
 };
 
@@ -95,61 +96,7 @@ exports.getUserRoles = async (req, res) => {
     const updatedAt = req.query.updatedAt ? new Date(req.query.updatedAt) : null;
 
     // Construction de la condition de recherche
-    const whereCondition = {
-      OR: [
-        { name: { contains: search, mode: 'insensitive' } },
-        { referenceNumber: { contains: search, mode: 'insensitive' } }
-      ],
-      AND: []
-    };
-
-    // Ajout des filtres booléens et autres
-    if (isActive !== undefined) whereCondition.isActive = isActive;
-    if (createdById) whereCondition.createdById = createdById;
-    if (updatedById) whereCondition.updatedById = updatedById;
-    if (permission) {
-      whereCondition.permissionList = {
-        has: permission
-      };
-    }
-
-    // Ajout des conditions de date si présentes
-    if (createdAt) {
-      whereCondition.AND.push({
-        createdAt: {
-          gte: createdAt,
-          lt: new Date(createdAt.getTime() + 24 * 60 * 60 * 1000)
-        }
-      });
-    } else if (createdAtStart || createdAtEnd) {
-      whereCondition.AND.push({
-        createdAt: {
-          ...(createdAtStart && { gte: createdAtStart }),
-          ...(createdAtEnd && { lte: createdAtEnd })
-        }
-      });
-    }
-
-    if (updatedAt) {
-      whereCondition.AND.push({
-        updatedAt: {
-          gte: updatedAt,
-          lt: new Date(updatedAt.getTime() + 24 * 60 * 60 * 1000)
-        }
-      });
-    } else if (updatedAtStart || updatedAtEnd) {
-      whereCondition.AND.push({
-        updatedAt: {
-          ...(updatedAtStart && { gte: updatedAtStart }),
-          ...(updatedAtEnd && { lte: updatedAtEnd })
-        }
-      });
-    }
-
-    // Si aucune condition AND n'est ajoutée, supprimez le tableau AND
-    if (whereCondition.AND.length === 0) {
-      delete whereCondition.AND;
-    }
+    const whereCondition = buildWhereCondition(req.query);
 
     // Récupération du nombre total de rôles utilisateur
     const total = await prisma.userRole.count({ where: whereCondition });
@@ -157,9 +104,11 @@ exports.getUserRoles = async (req, res) => {
     // Protection contre les performances
     const MAX_FOR_UNLIMITED_QUERY = 1000;
     if (requestedLimit === -1 && total > MAX_FOR_UNLIMITED_QUERY) {
-      return res.status(400).json({
-        error: `La récupération de tous les rôles utilisateur est limitée à ${MAX_FOR_UNLIMITED_QUERY} entrées. Veuillez utiliser la pagination.`
-      });
+      return ResponseHandler.error(
+        res,
+        `La récupération de tous les rôles utilisateur est limitée à ${MAX_FOR_UNLIMITED_QUERY} entrées. Veuillez utiliser la pagination.`,
+        'BAD_REQUEST'
+      );
     }
 
     // Configuration de la requête
@@ -200,51 +149,17 @@ exports.getUserRoles = async (req, res) => {
     });
 
     // Préparation de la réponse
-    const paginationData = requestedLimit === -1
-      ? {
-          total,
-          page: null,
-          limit: null,
-          totalPages: null,
-          hasNextPage: false,
-          hasPreviousPage: false
-        }
-      : {
-          total,
-          page,
-          limit: requestedLimit,
-          totalPages: Math.ceil(total / requestedLimit),
-          hasNextPage: page < Math.ceil(total / requestedLimit),
-          hasPreviousPage: page > 1
-        };
-
-    return res.status(200).json({
+    const response = {
       data: formattedUserRoles,
-      pagination: paginationData,
-      filters: {
-        search,
-        sortBy,
-        order,
-        dates: {
-          createdAt,
-          createdAtStart,
-          createdAtEnd,
-          updatedAt,
-          updatedAtStart,
-          updatedAtEnd
-        },
-        attributes: {
-          isActive,
-          createdById,
-          updatedById,
-          permission
-        }
-      },
+      pagination: buildPaginationData(total, page, requestedLimit),
+      filters: buildFiltersData(req.query, sortBy, order),
       validSortFields
-    });
+    };
+
+    return ResponseHandler.success(res, response);
   } catch (error) {
     console.error('Erreur lors de la récupération des rôles utilisateur:', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    return ResponseHandler.error(res, 'Erreur lors de la récupération des rôles utilisateur');
   }
 };
 
@@ -265,10 +180,10 @@ exports.getuserRolesInactifs = async (req, res) => {
     });
 
     const formateduserRoles = userRoles.map(userRoleResponseSerializer);
-    return res.status(200).json(formateduserRoles);
+    return ResponseHandler.success(res, formateduserRoles);
   } catch (error) {
     console.error('Erreur lors de la récupération des userRoles :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    return ResponseHandler.error(res, 'Erreur lors de la récupération des userRoles');
   }
 };
 
@@ -291,7 +206,7 @@ exports.getUserRole = async (req, res) => {
 
     // Vérification de l'existence de la userRole
     if (!userRole) {
-      return res.status(404).json({ error: 'userRole non trouvé' });
+      return ResponseHandler.error(res, 'Rôle utilisateur non trouvé', 'NOT_FOUND');
     }
     if(userRole.created){
       userRole.created=userResponseSerializer(userRole.created);
@@ -305,10 +220,10 @@ exports.getUserRole = async (req, res) => {
     
 
     // Réponse avec la userRole trouvé
-    return res.status(200).json(userRoleDetailResponseSerializer(userRole));
+    return ResponseHandler.success(res, userRoleDetailResponseSerializer(userRole));
   } catch (error) {
     console.error('Erreur lors de la récupération de la userRole :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    return ResponseHandler.error(res, 'Erreur lors de la récupération de la userRole');
   }
 };
 
@@ -327,7 +242,7 @@ exports.updateUserRole = async (req, res) => {
     // Validation des données d'entrée
     const { error } = userRoleCreateSerializer.validate(req.body);
     if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+      return ResponseHandler.error(res, error.details[0].message, 'BAD_REQUEST');
     }
 
     // Mise à jour de la userRole
@@ -356,7 +271,7 @@ exports.updateUserRole = async (req, res) => {
     });
 
     if (!userRole) {
-      return res.status(404).json({ error: 'userRole non trouvé' });
+      return ResponseHandler.error(res, 'Rôle utilisateur non trouvé', 'NOT_FOUND');
     }
     if(userRole.created){
       userRole.created=userResponseSerializer(userRole.created);
@@ -369,10 +284,10 @@ exports.updateUserRole = async (req, res) => {
     }
 
     // Réponse avec la userRole trouvé
-    return res.status(200).json(userRoleDetailResponseSerializer(userRole));
+    return ResponseHandler.success(res, userRoleDetailResponseSerializer(userRole));
   } catch (error) {
     console.error('Erreur lors de la mise à jour de la userRole :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    return ResponseHandler.error(res, 'Erreur lors de la mise à jour de la userRole');
   }
 };
 
@@ -394,14 +309,14 @@ exports.deleteUserRole = async (req, res) => {
     });
 
     if (!deleteduserRole) {
-      return res.status(404).json({ error: 'userRole non trouvé' });
+      return ResponseHandler.error(res, 'Rôle utilisateur non trouvé', 'NOT_FOUND');
     }
 
     // Réponse de suppression réussie
-    return res.status(204).send();
+    return ResponseHandler.noContent(res);
   } catch (error) {
     console.error('Erreur lors de la suppression de la userRole :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    return ResponseHandler.error(res, 'Erreur lors de la suppression de la userRole');
   }
 };
 
@@ -416,7 +331,7 @@ exports.restoreUserRole = async (req, res) => {
     });
 
     if (!restoreduserRole) {
-      return res.status(404).json({ error: 'userRole non trouvé' });
+      return ResponseHandler.error(res, 'Rôle utilisateur non trouvé', 'NOT_FOUND');
     }
 
     // Mise à jour de la userRole pour le restorer
@@ -432,12 +347,157 @@ exports.restoreUserRole = async (req, res) => {
     });
 
     // Réponse de restauration réussie
-    return res.status(200).send();
+    return ResponseHandler.success(res, null, 'OK');
   } catch (error) {
     console.error('Erreur lors de la restauration de la userRole :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    return ResponseHandler.error(res, 'Erreur lors de la restauration de la userRole');
   }
 };
+
+// Fonctions utilitaires
+function buildWhereCondition(query) {
+  const {
+    search = '',
+    isActive,
+    createdById,
+    updatedById,
+    permission
+  } = query;
+
+  const whereCondition = {
+    OR: [
+      { name: { contains: search, mode: 'insensitive' } },
+      { referenceNumber: { contains: search, mode: 'insensitive' } }
+    ],
+    AND: []
+  };
+
+  // Ajout des filtres booléens et autres
+  if (isActive !== undefined) whereCondition.isActive = isActive === 'true';
+  if (createdById) whereCondition.createdById = createdById;
+  if (updatedById) whereCondition.updatedById = updatedById;
+  if (permission) {
+    whereCondition.permissionList = {
+      has: permission
+    };
+  }
+
+  // Gestion des dates
+  addDateConditions(whereCondition, query);
+
+  if (whereCondition.AND.length === 0) {
+    delete whereCondition.AND;
+  }
+
+  return whereCondition;
+}
+
+function addDateConditions(whereCondition, query) {
+  const {
+    createdAt,
+    updatedAt,
+    createdAtStart,
+    createdAtEnd,
+    updatedAtStart,
+    updatedAtEnd
+  } = query;
+
+  if (createdAt) {
+    const startOfDay = new Date(createdAt);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+    whereCondition.AND.push({
+      createdAt: {
+        gte: startOfDay,
+        lt: endOfDay
+      }
+    });
+  } else if (createdAtStart || createdAtEnd) {
+    whereCondition.AND.push({
+      createdAt: {
+        ...(createdAtStart && { gte: new Date(createdAtStart) }),
+        ...(createdAtEnd && { lte: new Date(createdAtEnd) })
+      }
+    });
+  }
+
+  if (updatedAt) {
+    const startOfDay = new Date(updatedAt);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+    whereCondition.AND.push({
+      updatedAt: {
+        gte: startOfDay,
+        lt: endOfDay
+      }
+    });
+  } else if (updatedAtStart || updatedAtEnd) {
+    whereCondition.AND.push({
+      updatedAt: {
+        ...(updatedAtStart && { gte: new Date(updatedAtStart) }),
+        ...(updatedAtEnd && { lte: new Date(updatedAtEnd) })
+      }
+    });
+  }
+}
+
+function buildPaginationData(total, page, limit) {
+  if (limit === -1) {
+    return {
+      total,
+      page: null,
+      limit: null,
+      totalPages: null,
+      hasNextPage: false,
+      hasPreviousPage: false
+    };
+  }
+
+  return {
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+    hasNextPage: page < Math.ceil(total / limit),
+    hasPreviousPage: page > 1
+  };
+}
+
+function buildFiltersData(query, sortBy, order) {
+  const {
+    search,
+    createdAt,
+    createdAtStart,
+    createdAtEnd,
+    updatedAt,
+    updatedAtStart,
+    updatedAtEnd,
+    isActive,
+    createdById,
+    updatedById,
+    permission
+  } = query;
+
+  return {
+    search,
+    sortBy,
+    order,
+    dates: {
+      createdAt,
+      createdAtStart,
+      createdAtEnd,
+      updatedAt,
+      updatedAtStart,
+      updatedAtEnd
+    },
+    attributes: {
+      isActive,
+      createdById,
+      updatedById,
+      permission
+    }
+  };
+}
 
 // Export des fonctions du contrôleur
 module.exports = exports;

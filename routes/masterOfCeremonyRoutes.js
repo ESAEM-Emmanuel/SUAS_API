@@ -15,6 +15,6 @@ router.get('/', masterOfCeremonytController.getMasterOfCeremonys);
 router.get('/:id', masterOfCeremonytController.getMasterOfCeremony);
 router.put('/:id', masterOfCeremonytController.updateMasterOfCeremony);
 router.delete('/:id', masterOfCeremonytController.deleteMasterOfCeremony);
-router.patch('/:id', masterOfCeremonytController.restoremasterOfCeremony);
+router.patch('/:id', masterOfCeremonytController.restoreMasterOfCeremony);
 
 module.exports = router;

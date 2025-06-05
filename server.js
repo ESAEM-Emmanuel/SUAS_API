@@ -51,6 +51,33 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
 
+// Middleware de logging pour toutes les requêtes
+app.use((req, res, next) => {
+  const start = Date.now();
+  
+  // Log la requête entrante
+  console.log('\n-----------------------------------');
+  console.log(`${new Date().toISOString()}`);
+  console.log(`${req.method} ${req.url}`);
+  console.log('Headers:', req.headers);
+  if (req.body && Object.keys(req.body).length > 0) {
+    // Masquer les mots de passe dans les logs
+    const sanitizedBody = { ...req.body };
+    if (sanitizedBody.password) sanitizedBody.password = '********';
+    console.log('Body:', sanitizedBody);
+  }
+
+  // Intercepter la fin de la réponse pour logger le temps de réponse
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`Response Status: ${res.statusCode}`);
+    console.log(`Response Time: ${duration}ms`);
+    console.log('-----------------------------------\n');
+  });
+
+  next();
+});
+
 // Configuration Socket.IO avec CORS
 const io = new Server(server, {
   cors: corsOptions

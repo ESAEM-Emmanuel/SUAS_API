@@ -36,6 +36,12 @@ model User {
   surname                   String?
   categoriesCreated         Category[]         @relation("CreatedBy")
   categoriesUpdated         Category[]         @relation("UpdatedBy")
+
+  eventParticipantsApprovedBy          EventParticipant[]            @relation("ApprovedById")
+  eventParticipantsCreated             EventParticipant[]            @relation("CreatedById")
+  eventParticipantsOwner               EventParticipant[]            @relation("OwnerId")
+  eventParticipantsUpdated             EventParticipant[]            @relation("UpdatedById")
+
   eventsApprovedBy          Event[]            @relation("ApprovedBy")
   eventsCreated             Event[]            @relation("CreatedBy")
   eventsOwner               Event[]            @relation("OwnerId")
@@ -49,8 +55,13 @@ model User {
   participantsCreated       Participant[]      @relation("CreatedBy")
   participantsOwner         Participant[]      @relation("OwnerId")
   participantsUpdated       Participant[]      @relation("UpdatedBy")
+
   participantRolesCreated   ParticipantRole[]  @relation("CreatedBy")
   participantRolesUpdated   ParticipantRole[]  @relation("UpdatedBy")
+
+  EventParticipantRolesCreated   EventParticipantRole[]  @relation("createdById")
+  EventParticipantRolesUpdated   EventParticipantRole[]  @relation("updatedById")
+
   permissionsCreated        Permission[]       @relation("CreatedBy")
   permissionsUpdated        Permission[]       @relation("UpdatedBy")
   userRole                  UserRole?          @relation("UserRole", fields: [userRoleId], references: [id])
@@ -158,6 +169,29 @@ model MasterOfCeremony {
   updated         User?    @relation("UpdatedBy", fields: [updatedById], references: [id])
 }
 
+model EventParticipant {
+  id                    String          @id @default(uuid())
+  referenceNumber       String?         @unique
+  eventId          String
+  ownerId               String
+  eventParticipantRoleId     String?
+  isApproved            Boolean         @default(false)
+  approvedAt            DateTime?
+  createdById           String?
+  updatedById           String?
+  approvedById          String?
+  isActive              Boolean         @default(true)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  photo                 String?
+  event            Event          @relation("Event", fields: [eventId], references: [id])
+  owner                 User            @relation("OwnerId", fields: [ownerId], references: [id])
+  eventParticipantRole       EventParticipantRole @relation("EventParticipantRole", fields: [eventParticipantRoleId], references: [id])
+  evenApproved              User?           @relation("ApprovedBy", fields: [approvedById], references: [id])
+  created               User?           @relation("CreatedBy", fields: [createdById], references: [id])
+  updated               User?           @relation("UpdatedBy", fields: [updatedById], references: [id])
+}
+
 model Participant {
   id                    String          @id @default(uuid())
   referenceNumber       String?         @unique
@@ -246,6 +280,21 @@ model ParticipantRole {
   createdAt       DateTime?     @default(now())
   updatedAt       DateTime?     @updatedAt
   participants    Participant[] @relation("ParticipantRole")
+  created         User?         @relation("CreatedBy", fields: [createdById], references: [id])
+  updated         User?         @relation("UpdatedBy", fields: [updatedById], references: [id])
+}
+
+model EventParticipantRole {
+  id              String        @id @default(uuid())
+  referenceNumber String        @unique
+  name            String        @unique
+  permissionList  String[]
+  createdById     String?
+  updatedById     String?
+  isActive        Boolean       @default(true)
+  createdAt       DateTime?     @default(now())
+  updatedAt       DateTime?     @updatedAt
+  eventParticipants    EventParticipant[] @relation("EventParticipantRole")
   created         User?         @relation("CreatedBy", fields: [createdById], references: [id])
   updated         User?         @relation("UpdatedBy", fields: [updatedById], references: [id])
 }

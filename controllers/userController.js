@@ -7,7 +7,7 @@ const generateUniqueReferenceNumber = require("../utils/utils");
 const userCreateSerializer = require('../serializers/userCreateSerializer');
 const userResponseSerializer = require('../serializers/userResponseSerializer');
 const userDetailResponseSerializer = require('../serializers/userDetailResponseSerializer');
-
+const ResponseHandler = require('../utils/responseHandler');
 
 exports.createUser = async (req, res) => {
   const {
@@ -30,12 +30,12 @@ exports.createUser = async (req, res) => {
     // Validation des données d'entrée
     const { error } = userCreateSerializer.validate(req.body);
     if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+      return ResponseHandler.error(res, error.details[0].message, 'BAD_REQUEST');
     }
 
     // Vérification de la valeur du genre
     if (gender && !['MALE', 'FEMALE', 'OTHER'].includes(gender)) {
-      return res.status(400).json({ error: 'Gender must be: MALE, FEMALE, or OTHER' });
+      return ResponseHandler.error(res, 'Le genre doit être : MALE, FEMALE, ou OTHER', 'BAD_REQUEST');
     }
 
     // Vérification des contraintes d'unicité
@@ -53,13 +53,13 @@ exports.createUser = async (req, res) => {
     if (existingUsers.length) {
       const conflicts = [];
       existingUsers.forEach(user => {
-        if (user.username === username) conflicts.push('Username already exists');
-        if (user.email === email) conflicts.push('Email already exists');
-        if (user.phone === phone) conflicts.push('Phone already exists');
-        if (user.photo === photo) conflicts.push('Photo already exists');
+        if (user.username === username) conflicts.push('Ce nom d\'utilisateur existe déjà');
+        if (user.email === email) conflicts.push('Cet email existe déjà');
+        if (user.phone === phone) conflicts.push('Ce numéro de téléphone existe déjà');
+        if (user.photo === photo) conflicts.push('Cette photo existe déjà');
       });
 
-      return res.status(400).json({ error: conflicts.join(', ') });
+      return ResponseHandler.error(res, conflicts.join(', '), 'CONFLICT');
     }
 
     // Génération du numéro de référence unique
@@ -90,21 +90,17 @@ exports.createUser = async (req, res) => {
       },
     });
 
-    // Formatage de la réponse
     const formattedUser = userResponseSerializer(newUser);
-
-    // Réponse avec l'utilisateur créé
-    return res.status(201).json(formattedUser);
+    return ResponseHandler.success(res, formattedUser, 'CREATED');
   } catch (error) {
-    console.error('Erreur lors de la création de l\'utilisateur :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la création de l\'utilisateur:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la création de l\'utilisateur');
   }
 };
 
-
 exports.login = async (req, res) => {
   const { username, password } = req.body;
-  console.log(username , password)
+
   try {
     // Recherche de l'utilisateur par nom d'utilisateur
     const user = await prisma.user.findUnique({
@@ -113,21 +109,20 @@ exports.login = async (req, res) => {
 
     // Vérification de l'utilisateur
     if (!user) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+      return ResponseHandler.error(res, 'Identifiants invalides', 'UN_AUTHORIZED');
     }
 
     // Vérification du mot de passe
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
-      return res.status(401).json({ error: 'Mot de passe incorrect' });
+      return ResponseHandler.error(res, 'Identifiants invalides', 'UN_AUTHORIZED');
     }
 
     // Création du token JWT
     const token = jwt.sign(
       { userId: user.id, username: user.username },
       process.env.JWT_SECRET,
-      { expiresIn: '1y' } // Token valide pendant un an
-      // { expiresIn: '1h' }
+      { expiresIn: '1y' }
     );
 
     // Recherche des détails de l'utilisateur
@@ -161,57 +156,34 @@ exports.login = async (req, res) => {
     });
     current_user = userDetailResponseSerializer(current_user);
 
-    // Réponse avec le token JWT
-    return res.status(200).json({ token, current_user });
+    return ResponseHandler.success(res, { token, current_user });
   } catch (error) {
-    console.error('Erreur lors de la connexion de l\'utilisateur :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la connexion:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la connexion');
   }
 };
 
 exports.logout = async (req, res) => {
   const { token } = req.body;
-  console.log(token);
 
   try {
-    // Ajout du token à la liste noire
     await prisma.tokenBlacklist.create({
-      data: {
-        token,
-      },
+      data: { token },
     });
 
-    return res.status(200).json({ message: 'Déconnexion réussie' });
+    return ResponseHandler.success(res, { message: 'Déconnexion réussie' });
   } catch (error) {
-    console.error('Erreur lors de la déconnexion :', error);
-    return res.status(500).json({ error: 'Erreur lors de la déconnexion' });
+    console.error('Erreur lors de la déconnexion:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la déconnexion');
   }
 };
 
-
-// Fonction pour récupérer tous les utilisateurs avec pagination
 exports.getUsers = async (req, res) => {
   try {
-    // Liste des champs de tri valides
     const validSortFields = [
-      'id',
-      'username',
-      'referenceNumber',
-      'email',
-      'phone',
-      'name',
-      'photo',
-      'gender',
-      'isStaff',
-      'isAdmin',
-      'isOwner',
-      'isActive',
-      'createdBy',
-      'updatedBy',
-      'userRoleId',
-      'createdAt',
-      'updatedAt',
-      'surname'
+      'id', 'username', 'referenceNumber', 'email', 'phone', 'name',
+      'photo', 'gender', 'isStaff', 'isAdmin', 'isOwner', 'isActive',
+      'createdBy', 'updatedBy', 'userRoleId', 'createdAt', 'updatedAt', 'surname'
     ];
 
     // Récupération des paramètres de pagination depuis la requête
@@ -221,15 +193,6 @@ exports.getUsers = async (req, res) => {
     const requestedSortBy = req.query.sortBy || 'createdAt';
     const order = req.query.order?.toUpperCase() === 'ASC' ? 'asc' : 'desc';
 
-    // Récupération des paramètres de filtrage supplémentaires
-    const gender = req.query.gender ? req.query.gender.toUpperCase() : undefined;
-    const isStaff = req.query.isStaff !== undefined ? req.query.isStaff === 'true' : undefined;
-    const isAdmin = req.query.isAdmin !== undefined ? req.query.isAdmin === 'true' : undefined;
-    const isOwner = req.query.isOwner !== undefined ? req.query.isOwner === 'true' : undefined;
-    const isActive = req.query.isActive !== undefined ? req.query.isActive === 'true' : undefined;
-    const createdBy = req.query.createdBy || undefined;
-    const updatedBy = req.query.updatedBy || undefined;
-
     // Validation du champ de tri
     const sortBy = validSortFields.includes(requestedSortBy) ? requestedSortBy : 'createdAt';
 
@@ -238,96 +201,31 @@ exports.getUsers = async (req, res) => {
     }
 
     // Validation du genre
+    const gender = req.query.gender ? req.query.gender.toUpperCase() : undefined;
     if (gender && !['MALE', 'FEMALE', 'OTHER'].includes(gender)) {
-      return res.status(400).json({
-        error: 'La valeur de gender doit être MALE, FEMALE ou OTHER'
-      });
+      return ResponseHandler.error(res, 'La valeur de gender doit être MALE, FEMALE ou OTHER', 'BAD_REQUEST');
     }
 
-    // Paramètres de filtrage par date
-    const createdAtStart = req.query.createdAtStart ? new Date(req.query.createdAtStart) : null;
-    const createdAtEnd = req.query.createdAtEnd ? new Date(req.query.createdAtEnd) : null;
-    const updatedAtStart = req.query.updatedAtStart ? new Date(req.query.updatedAtStart) : null;
-    const updatedAtEnd = req.query.updatedAtEnd ? new Date(req.query.updatedAtEnd) : null;
-    const createdAt = req.query.createdAt ? new Date(req.query.createdAt) : null;
-    const updatedAt = req.query.updatedAt ? new Date(req.query.updatedAt) : null;
+    // Construction des conditions de recherche et de filtrage
+    const whereCondition = buildWhereCondition(req.query);
 
-    // Construction de la condition de recherche
-    const whereCondition = {
-      OR: [
-        { username: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { name: { contains: search, mode: 'insensitive' } },
-        { surname: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search, mode: 'insensitive' } },
-      ],
-      AND: []
-    };
-
-    // Ajout des filtres booléens et autres
-    if (isActive !== undefined) whereCondition.isActive = isActive;
-    if (isStaff !== undefined) whereCondition.isStaff = isStaff;
-    if (isAdmin !== undefined) whereCondition.isAdmin = isAdmin;
-    if (isOwner !== undefined) whereCondition.isOwner = isOwner;
-    if (gender) whereCondition.gender = gender;
-    if (createdBy) whereCondition.createdBy = createdBy;
-    if (updatedBy) whereCondition.updatedBy = updatedBy;
-
-    // Ajout des conditions de date si présentes
-    if (createdAt) {
-      whereCondition.AND.push({
-        createdAt: {
-          gte: createdAt,
-          lt: new Date(createdAt.getTime() + 24 * 60 * 60 * 1000)
-        }
-      });
-    } else if (createdAtStart || createdAtEnd) {
-      whereCondition.AND.push({
-        createdAt: {
-          ...(createdAtStart && { gte: createdAtStart }),
-          ...(createdAtEnd && { lte: createdAtEnd })
-        }
-      });
-    }
-
-    if (updatedAt) {
-      whereCondition.AND.push({
-        updatedAt: {
-          gte: updatedAt,
-          lt: new Date(updatedAt.getTime() + 24 * 60 * 60 * 1000)
-        }
-      });
-    } else if (updatedAtStart || updatedAtEnd) {
-      whereCondition.AND.push({
-        updatedAt: {
-          ...(updatedAtStart && { gte: updatedAtStart }),
-          ...(updatedAtEnd && { lte: updatedAtEnd })
-        }
-      });
-    }
-
-    // Si aucune condition AND n'est ajoutée, supprimez le tableau AND
-    if (whereCondition.AND.length === 0) {
-      delete whereCondition.AND;
-    }
-
-    // Récupération du nombre total d'utilisateurs actifs
+    // Récupération du nombre total d'utilisateurs
     const total = await prisma.user.count({ where: whereCondition });
 
     // Protection contre les performances
     const MAX_FOR_UNLIMITED_QUERY = 1000;
     if (requestedLimit === -1 && total > MAX_FOR_UNLIMITED_QUERY) {
-      return res.status(400).json({
-        error: `La récupération de tous les utilisateurs est limitée à ${MAX_FOR_UNLIMITED_QUERY} utilisateurs. Veuillez utiliser la pagination.`
-      });
+      return ResponseHandler.error(
+        res,
+        `La récupération de tous les utilisateurs est limitée à ${MAX_FOR_UNLIMITED_QUERY} entrées. Veuillez utiliser la pagination.`,
+        'BAD_REQUEST'
+      );
     }
 
     // Configuration de la requête
-    let findManyOptions = {
+    const findManyOptions = {
       where: whereCondition,
-      orderBy: {
-        [sortBy]: order
-      },
+      orderBy: { [sortBy]: order },
       include: {
         userRole: true
       }
@@ -335,78 +233,29 @@ exports.getUsers = async (req, res) => {
 
     // Ajouter la pagination seulement si limit n'est pas -1
     if (requestedLimit !== -1) {
-      findManyOptions = {
-        ...findManyOptions,
-        skip: (page - 1) * requestedLimit,
-        take: requestedLimit
-      };
+      findManyOptions.skip = (page - 1) * requestedLimit;
+      findManyOptions.take = requestedLimit;
     }
 
     // Récupération des utilisateurs
     const users = await prisma.user.findMany(findManyOptions);
 
-    // Formatage de la réponse
+    // Formatage et préparation de la réponse
     const formattedUsers = users.map(user => userResponseSerializer(user));
-
-    // Préparation de la réponse
-    let paginationData;
-    
-    if (requestedLimit === -1) {
-      // Cas spécial pour limit=-1
-      paginationData = {
-        total: total,
-        page: null,
-        limit: null,
-        totalPages: null,
-        hasNextPage: false,
-        hasPreviousPage: false
-      };
-    } else {
-      // Calculs normaux de pagination pour les autres cas
-      paginationData = {
-        total: total,
-        page: page,
-        limit: requestedLimit,
-        totalPages: Math.ceil(total / requestedLimit),
-        hasNextPage: page < Math.ceil(total / requestedLimit),
-        hasPreviousPage: page > 1
-      };
-    }
-
-    return res.status(200).json({
+    const response = {
       data: formattedUsers,
-      pagination: paginationData,
-      filters: {
-        search,
-        sortBy,
-        order,
-        dates: {
-          createdAt,
-          createdAtStart,
-          createdAtEnd,
-          updatedAt,
-          updatedAtStart,
-          updatedAtEnd
-        },
-        attributes: {
-          gender,
-          isStaff,
-          isAdmin,
-          isOwner,
-          isActive,
-          createdBy,
-          updatedBy
-        }
-      },
+      pagination: buildPaginationData(total, page, requestedLimit),
+      filters: buildFiltersData(req.query, sortBy, order),
       validSortFields
-    });
+    };
+
+    return ResponseHandler.success(res, response);
   } catch (error) {
     console.error('Erreur lors de la récupération des utilisateurs:', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    return ResponseHandler.error(res, 'Erreur lors de la récupération des utilisateurs');
   }
 };
 
-// Fonction pour récupérer tous les utilisateurs avec pagination
 exports.getUsersInactifs = async (req, res) => {
   const { page = 1, limit = 100 } = req.query;
 
@@ -414,32 +263,24 @@ exports.getUsersInactifs = async (req, res) => {
     const users = await prisma.user.findMany({
       skip: (page - 1) * limit,
       take: parseInt(limit),
-      where: {
-        isActive: false,
-      },
-      orderBy: {
-        name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
-      },
+      where: { isActive: false },
+      orderBy: { name: 'asc' },
     });
 
-    const formatedUsers = users.map(userResponseSerializer);
-    return res.status(200).json(formatedUsers);
+    const formattedUsers = users.map(userResponseSerializer);
+    return ResponseHandler.success(res, formattedUsers);
   } catch (error) {
-    console.error('Erreur lors de la récupération des utilisateurs :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la récupération des utilisateurs inactifs:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la récupération des utilisateurs inactifs');
   }
 };
 
-// Fonction pour récupérer un utilisateur par son ID
 exports.getUser = async (req, res) => {
-  console.log("getUser ok");
   const { id } = req.params;
 
   try {
     const user = await prisma.user.findUnique({
-      where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-      },
+      where: { id },
       include: {
         userRole: true,
         categoriesCreated: true,
@@ -467,32 +308,27 @@ exports.getUser = async (req, res) => {
       },
     });
 
-    // Vérification de l'existence de l'utilisateur
     if (!user) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+      return ResponseHandler.error(res, 'Utilisateur non trouvé', 'NOT_FOUND');
     }
 
-    // Réponse avec l'utilisateur trouvé
-    return res.status(200).json(userDetailResponseSerializer(user));
+    return ResponseHandler.success(res, userDetailResponseSerializer(user));
   } catch (error) {
-    console.error('Erreur lors de la récupération de l\'utilisateur :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la récupération de l\'utilisateur:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la récupération de l\'utilisateur');
   }
 };
 
-// Fonction pour mettre à jour un utilisateur
 exports.updateUser = async (req, res) => {
   const { id } = req.params;
-  console.log("updateUser");
 
   try {
-    // D'abord, récupérer l'utilisateur existant
     const existingUser = await prisma.user.findUnique({
       where: { id },
     });
 
     if (!existingUser) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+      return ResponseHandler.error(res, 'Utilisateur non trouvé', 'NOT_FOUND');
     }
 
     // Préparer les données de mise à jour
@@ -528,7 +364,8 @@ exports.updateUser = async (req, res) => {
 
     // Ajouter les champs de mise à jour
     updateData.updatedBy = req.userId;
-    updateData.updatedAt = new Date();
+    updateData.updatedAt = DateTime.now().toJSDate();
+    console.log(updateData)
 
     // Validation des données d'entrée uniquement sur les champs fournis
     if (Object.keys(updateData).length > 0) {
@@ -539,7 +376,7 @@ exports.updateUser = async (req, res) => {
       });
       
       if (error) {
-        return res.status(400).json({ error: error.details[0].message });
+        return ResponseHandler.error(res, error.details[0].message, 'BAD_REQUEST');
       }
     }
 
@@ -574,100 +411,242 @@ exports.updateUser = async (req, res) => {
       },
     });
 
-    // Réponse avec l'utilisateur mis à jour
-    return res.status(200).json(userDetailResponseSerializer(updatedUser));
+    return ResponseHandler.success(res, userDetailResponseSerializer(updatedUser));
   } catch (error) {
-    console.error('Erreur lors de la mise à jour de l\'utilisateur :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la mise à jour de l\'utilisateur:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la mise à jour de l\'utilisateur');
   }
 };
 
-// Fonction pour supprimer un utilisateur
 exports.deleteUser = async (req, res) => {
   const { id } = req.params;
-  // Recherche de l'utilisateur par nom d'utilisateur
-  const user = await prisma.user.findUnique({
-    where: {
-      id:id,
-      isActive:true
-    },
-  });
-
-  // Vérification de l'utilisateur
-  if (!user) {
-    return res.status(404).json({ error: 'Utilisateur non trouvé' });
-  }
 
   try {
-    // Mise à jour de l'utilisateur pour une suppression douce
-    const deletedUser = await prisma.user.update({
-      where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-      },
-      data: {
-        isActive: false,
-        approvedById: req.userId,
-        approvedAt: DateTime.now().toJSDate(),
-      },
-    });
-
-    if (!deletedUser) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé' });
-    }
-
-    // Réponse de suppression réussie
-    return res.status(204).send();
-  } catch (error) {
-    console.error('Erreur lors de la suppression de l\'utilisateur :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
-  }
-};
-
-// Fonction pour restorer un utilisateur
-exports.restoreUser = async (req, res) => {
-  const { id } = req.params;
-  // Recherche de l'utilisateur par nom d'utilisateur
-  const user = await prisma.user.findUnique({
-    where: {
-      id:id,
-      isActive:false
-    },
-  });
-
-  // Vérification de l'utilisateur
-  if (!user) {
-    return res.status(404).json({ error: 'Utilisateur non trouvé' });
-  }
-
-  try {
-    // Vérification de l'existence de l'utilisateur
     const user = await prisma.user.findUnique({
-      where: { id: id },
+      where: {
+        id,
+        isActive: true
+      },
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+      return ResponseHandler.error(res, 'Utilisateur non trouvé', 'NOT_FOUND');
     }
 
-    // Mise à jour de l'utilisateur pour le restaurer
     await prisma.user.update({
-      where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-      },
+      where: { id },
       data: {
-        isActive: true,
-        approvedById: req.userId,
-        approvedAt: DateTime.now().toJSDate(),
+        isActive: false,
+        updatedBy: req.userId,
+        updatedAt: DateTime.now().toJSDate(),
       },
     });
 
-    // Réponse de restauration réussie
-    return res.status(200).send();
+    return ResponseHandler.noContent(res);
   } catch (error) {
-    console.error('Erreur lors de la restauration de l\'utilisateur :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la suppression de l\'utilisateur:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la suppression de l\'utilisateur');
   }
 };
 
-// Export des fonctions du contrôleur
+exports.restoreUser = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: {
+        id,
+        isActive: false
+      },
+    });
+
+    if (!user) {
+      return ResponseHandler.error(res, 'Utilisateur non trouvé', 'NOT_FOUND');
+    }
+
+    await prisma.user.update({
+      where: { id },
+      data: {
+        isActive: true,
+        updatedBy: req.userId,
+        updatedAt: DateTime.now().toJSDate(),
+      },
+    });
+
+    return ResponseHandler.success(res, null, 'OK');
+  } catch (error) {
+    console.error('Erreur lors de la restauration de l\'utilisateur:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la restauration de l\'utilisateur');
+  }
+};
+
+// Fonctions utilitaires
+function buildWhereCondition(query) {
+  const {
+    search = '',
+    isActive,
+    isStaff,
+    isAdmin,
+    isOwner,
+    gender,
+    createdBy,
+    updatedBy,
+    createdAt,
+    updatedAt,
+    createdAtStart,
+    createdAtEnd,
+    updatedAtStart,
+    updatedAtEnd
+  } = query;
+
+  const whereCondition = {
+    OR: [
+      { username: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
+      { name: { contains: search, mode: 'insensitive' } },
+      { surname: { contains: search, mode: 'insensitive' } },
+      { phone: { contains: search, mode: 'insensitive' } },
+    ],
+    AND: []
+  };
+
+  // Ajout des filtres booléens et autres
+  if (isActive !== undefined) whereCondition.isActive = isActive === 'true';
+  if (isStaff !== undefined) whereCondition.isStaff = isStaff === 'true';
+  if (isAdmin !== undefined) whereCondition.isAdmin = isAdmin === 'true';
+  if (isOwner !== undefined) whereCondition.isOwner = isOwner === 'true';
+  if (gender) whereCondition.gender = gender;
+  if (createdBy) whereCondition.createdBy = createdBy;
+  if (updatedBy) whereCondition.updatedBy = updatedBy;
+
+  // Gestion des dates
+  addDateConditions(whereCondition, {
+    createdAt,
+    updatedAt,
+    createdAtStart,
+    createdAtEnd,
+    updatedAtStart,
+    updatedAtEnd
+  });
+
+  if (whereCondition.AND.length === 0) {
+    delete whereCondition.AND;
+  }
+
+  return whereCondition;
+}
+
+function addDateConditions(whereCondition, dates) {
+  const {
+    createdAt,
+    updatedAt,
+    createdAtStart,
+    createdAtEnd,
+    updatedAtStart,
+    updatedAtEnd
+  } = dates;
+
+  if (createdAt) {
+    const startOfDay = new Date(createdAt);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+    whereCondition.AND.push({
+      createdAt: {
+        gte: startOfDay,
+        lt: endOfDay
+      }
+    });
+  } else if (createdAtStart || createdAtEnd) {
+    whereCondition.AND.push({
+      createdAt: {
+        ...(createdAtStart && { gte: new Date(createdAtStart) }),
+        ...(createdAtEnd && { lte: new Date(createdAtEnd) })
+      }
+    });
+  }
+
+  if (updatedAt) {
+    const startOfDay = new Date(updatedAt);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+    whereCondition.AND.push({
+      updatedAt: {
+        gte: startOfDay,
+        lt: endOfDay
+      }
+    });
+  } else if (updatedAtStart || updatedAtEnd) {
+    whereCondition.AND.push({
+      updatedAt: {
+        ...(updatedAtStart && { gte: new Date(updatedAtStart) }),
+        ...(updatedAtEnd && { lte: new Date(updatedAtEnd) })
+      }
+    });
+  }
+}
+
+function buildPaginationData(total, page, limit) {
+  if (limit === -1) {
+    return {
+      total,
+      page: null,
+      limit: null,
+      totalPages: null,
+      hasNextPage: false,
+      hasPreviousPage: false
+    };
+  }
+
+  return {
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+    hasNextPage: page < Math.ceil(total / limit),
+    hasPreviousPage: page > 1
+  };
+}
+
+function buildFiltersData(query, sortBy, order) {
+  const {
+    search,
+    createdAt,
+    createdAtStart,
+    createdAtEnd,
+    updatedAt,
+    updatedAtStart,
+    updatedAtEnd,
+    gender,
+    isStaff,
+    isAdmin,
+    isOwner,
+    isActive,
+    createdBy,
+    updatedBy
+  } = query;
+
+  return {
+    search,
+    sortBy,
+    order,
+    dates: {
+      createdAt,
+      createdAtStart,
+      createdAtEnd,
+      updatedAt,
+      updatedAtStart,
+      updatedAtEnd
+    },
+    attributes: {
+      gender,
+      isStaff,
+      isAdmin,
+      isOwner,
+      isActive,
+      createdBy,
+      updatedBy
+    }
+  };
+}
+
 module.exports = exports;

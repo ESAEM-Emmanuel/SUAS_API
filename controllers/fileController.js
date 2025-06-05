@@ -3,6 +3,7 @@ const multer = require('multer');
 const excel = require('exceljs');
 const path = require('path');
 const fs = require('fs');
+const ResponseHandler = require('../utils/responseHandler');
 require("dotenv").config(); 
 
 // const storage = multer.diskStorage({
@@ -70,26 +71,17 @@ exports.upload = multer({
 //   }
 // };
 exports.uploadFile = (req, res) => {
-    console.log("uploadFile");
     try {
         if (!req.files || Object.keys(req.files).length === 0) {
-            return res.status(400).json({ message: 'No files uploaded.' });
+            return ResponseHandler.error(res, 'Aucun fichier n\'a été téléchargé', 'BAD_REQUEST');
         }
   
         const uploadedFiles = req.files.map((file) => {
-            // Obtenir la date et l'heure actuelles
-            const currentDateTime = new Date().toISOString().replace(/:/g, '-'); // Formatage pour éviter les caractères non autorisés
-  
-            // Extraire l'extension du fichier
+            const currentDateTime = new Date().toISOString().replace(/:/g, '-');
             const fileExtension = path.extname(file.filename);
-            
-            // Construire le nouveau nom de fichier avec l'horodatage
             const newFilename = `${path.basename(file.filename, fileExtension)}_${currentDateTime}${fileExtension}`;
-            
-            // Définir le chemin de destination
             const filePath = path.join(__dirname, '..', 'uploads', newFilename);
             
-            // Déplacer/renommer le fichier uploadé
             fs.renameSync(file.path, filePath);
   
             return {
@@ -99,19 +91,19 @@ exports.uploadFile = (req, res) => {
             };
         });
   
-        return res.send(uploadedFiles);
+        return ResponseHandler.success(res, uploadedFiles);
     } catch (error) {
-        console.error('Error uploading files:', error);
-        res.status(500).json({ message: 'Error uploading files.' });
+        console.error('Erreur lors du téléchargement des fichiers:', error);
+        return ResponseHandler.error(res, 'Erreur lors du téléchargement des fichiers');
     }
-  };
+};
 
   
   exports.toExcel=async(req, res)=>{
   const { data, headings } = req.body;
 
   if (!Array.isArray(data)) { 
-    return res.status(400).send('Invalid data format. Expected an array of objects.'); 
+    return ResponseHandler.error(res, 'Format de données invalide. Un tableau d\'objets est attendu.', 'BAD_REQUEST'); 
     } 
     // Create a new Excel workbook and worksheet 
     const workbook = new excel.Workbook(); 
@@ -122,41 +114,33 @@ exports.uploadFile = (req, res) => {
     
     // Define the file path 
     const filePath = path.join(__dirname, '..', 'uploads', `exported_${Date.now()}.xlsx`); 
-    fs.promises.access(filePath, fs.constants.F_OK)
-    .then(() => {
-        console.log('File already exists.');
-    })
-    .catch(() => {
-        // Create the file if it doesn't exist
-        fs.writeFile(filePath, '', (err) => {
-        if (err) {
-            console.error('Error creating file:', err);
-            return;
-        }
-        console.log('Excel file created successfully!');
-        workbook.xlsx.writeFile(filePath); 
-        });
+    
+    try {
+        await fs.promises.access(filePath, fs.constants.F_OK);
+        console.log('Le fichier existe déjà.');
+    } catch {
+        await fs.promises.writeFile(filePath, '');
+        console.log('Fichier Excel créé avec succès!');
+        await workbook.xlsx.writeFile(filePath); 
+    }
+    
+    return ResponseHandler.success(res, { 
+        fileUrl: `https://${process.env.ADDRESS}:${process.env.PORT}/file/download/${path.basename(filePath)}` 
     });
-    
-    
-    
-    res.json({ fileUrl: `https://${process.env.ADDRESS}:${process.env.PORT}/file/download/${path.basename(filePath)}` });
 }
 
 exports.download = async (req, res) => {
   const filename = req.params.filename;   
-  console.log(filename);
-  const filePath = path.join(__dirname, '..', 'uploads', filename); // Correction ici pour garantir que le chemin est correct
-  console.log(filePath);
+  const filePath = path.join(__dirname, '..', 'uploads', filename);
 
   if (fs.existsSync(filePath)) {
       res.download(filePath, err => {
           if (err) {
-              console.error('File download error:', err);
-              res.status(500).send('File download error.');
+              console.error('Erreur lors du téléchargement du fichier:', err);
+              return ResponseHandler.error(res, 'Erreur lors du téléchargement du fichier');
           }
       });
   } else {
-      res.status(404).send('File not found.');
+      return ResponseHandler.error(res, 'Fichier non trouvé', 'NOT_FOUND');
   }
 };

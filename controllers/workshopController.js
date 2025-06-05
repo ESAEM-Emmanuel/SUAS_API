@@ -10,9 +10,13 @@ const workshopDetailResponseSerializer = require('../serializers/workshopDetailR
 const userResponseSerializer = require('../serializers/userResponseSerializer');
 const participantResponseSerializer = require('../serializers/participantResponseSerializer');
 const participantRoleResponseSerializer = require('../serializers/participantRoleResponseSerializer');
+const ResponseHandler = require('../utils/responseHandler');
 
 // Fonction pour créer un nouvel workshop
 exports.createWorkshop = async (req, res) => {
+  console.log('Endpoint: POST /workshops/create');
+  console.log('Request Body:', req.body);
+  
   // Extraction des données de la requête
   const { 
     eventId,
@@ -26,13 +30,14 @@ exports.createWorkshop = async (req, res) => {
     startDate,
     endDate,
     isOnlineWorkshop,
-    isPublic, } = req.body;
+    isPublic } = req.body;
 
   try {
     // Validation des données d'entrée
     const { error } = workshopCreateSerializer.validate(req.body);
     if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+      console.log('Validation Error:', error.details[0].message);
+      return ResponseHandler.error(res, error.details[0].message, 'BAD_REQUEST');
     }
 
     // Vérification des contraintes d'unicité
@@ -40,12 +45,12 @@ exports.createWorkshop = async (req, res) => {
       where: { photo }
     });
     if (existingPhotoworkshop) {
-      return res.status(400).json({ error: 'Please change the workshop image!' });
+      console.log('Error: Workshop with this photo already exists');
+      return ResponseHandler.error(res, 'Veuillez changer l\'image de l\'atelier !', 'CONFLICT');
     }
 
     // Génération du numéro de référence unique
     const referenceNumber = await generateUniqueReferenceNumber(prisma.workshop);
-    console.log(referenceNumber);
     
     // S'assurer que startDate et endDate ne contiennent que la date (sans heure)
     const formattedStartDate = new Date(startDate);
@@ -53,33 +58,34 @@ exports.createWorkshop = async (req, res) => {
 
     const formattedEndDate = new Date(endDate);
     formattedEndDate.setHours(23, 59, 59, 999);
+
     const event = await prisma.event.findUnique({
-      where: {
-        id: eventId, // Assurez-vous que l'ID est utilisé tel quel (string)
-      }
-    })
+      where: { id: eventId }
+    });
+
     if (!event) {
-      return res.status(404).json({ error: 'Event non trouvé' });
+      console.log('Error: Event not found');
+      return ResponseHandler.error(res, 'Événement non trouvé', 'NOT_FOUND');
     }
     
-    eventStartDate =event.startDate ;
-    eventEndDate =event.endDate ;
+    const eventStartDate = event.startDate;
+    const eventEndDate = event.endDate;
 
-    console.log("eventStartDate : " + eventStartDate);
-    console.log("eventEndDate : " + eventEndDate);
     // Vérifier si les dates sont comprises entre event_start_date et event_end_date
     if (formattedStartDate <= eventStartDate || formattedStartDate >= eventEndDate || 
       formattedEndDate <= eventStartDate || formattedEndDate >= eventEndDate) {
-      return res.status(400).json({ error: 'Event dates must be within the allowed event period' });
+      console.log('Error: Workshop dates must be within event period');
+      return ResponseHandler.error(res, 'Les dates de l\'atelier doivent être comprises dans la période de l\'événement', 'BAD_REQUEST');
     }
 
     // Comparer les dates
     if (formattedEndDate < formattedStartDate) {
-      return res.status(400).json({ error: 'End date must be after start date' });
+      console.log('Error: End date must be after start date');
+      return ResponseHandler.error(res, 'La date de fin doit être postérieure à la date de début', 'BAD_REQUEST');
     }
 
-    // Création de l'événement avec Prisma
-    const newworkshop = await prisma.workshop.create({
+    // Création de l'atelier avec Prisma
+    const newWorkshop = await prisma.workshop.create({
       data: {
         eventId,
         name,
@@ -93,23 +99,26 @@ exports.createWorkshop = async (req, res) => {
         endDate: formattedEndDate,
         referenceNumber,
         isActive: true,
-        isOnlineWorkshop:isOnlineWorkshop|| false,
-        isPublic:isPublic|| false,
+        isOnlineWorkshop: isOnlineWorkshop || false,
+        isPublic: isPublic || false,
         createdById: req.userId,
         createdAt: DateTime.now().toJSDate(),
       },
     });
 
-    // Réponse avec l'événement créé
-    return res.status(201).json(newworkshop);
+    console.log('Workshop created successfully:', newWorkshop);
+    return ResponseHandler.success(res, workshopResponseSerializer(newWorkshop), 'CREATED');
   } catch (error) {
-    console.error('Erreur lors de la création de l\'événement :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Error creating workshop:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la création de l\'atelier');
   }
 };
 
 // Fonction pour récupérer tous les workshops avec pagination
 exports.getWorkshops = async (req, res) => {
+  console.log('Endpoint: GET /workshops');
+  console.log('Query Parameters:', req.query);
+
   try {
     // Liste des champs de tri valides
     const validSortFields = [
@@ -404,7 +413,8 @@ exports.getWorkshops = async (req, res) => {
           hasPreviousPage: page > 1
         };
 
-    return res.status(200).json({
+    console.log('Workshops retrieved successfully:', formattedWorkshops);
+    return ResponseHandler.success(res, {
       data: formattedWorkshops,
       pagination: paginationData,
       filters: {
@@ -454,8 +464,8 @@ exports.getWorkshops = async (req, res) => {
       validSortFields
     });
   } catch (error) {
-    console.error('Erreur lors de la récupération des workshops:', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Error retrieving workshops:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la récupération des ateliers');
   }
 };
 
@@ -503,7 +513,9 @@ exports.getWorkshopsInactifs = async (req, res) => {
 
 // Fonction pour récupérer un workshop par son ID
 exports.getWorkshop = async (req, res) => {
-  console.log("getWorkshop OK");
+  console.log('Endpoint: GET /workshops/:id');
+  console.log('Request Parameters:', req.params);
+
   const { id } = req.params;
 
   try {
@@ -528,9 +540,9 @@ exports.getWorkshop = async (req, res) => {
       },
     });
 
-    // Vérification de l'existence de la workshop
     if (!workshop) {
-      return res.status(404).json({ error: 'Workshop non trouvé' });
+      console.log('Error: Workshop not found');
+      return ResponseHandler.error(res, 'Atelier non trouvé', 'NOT_FOUND');
     }
 
     // Sérialiser les informations de l'atelier
@@ -550,33 +562,36 @@ exports.getWorkshop = async (req, res) => {
       }))
     };
 
-    return res.status(200).json(serializedWorkshop);
+    console.log('Workshop retrieved successfully:', serializedWorkshop);
+    return ResponseHandler.success(res, serializedWorkshop);
   } catch (error) {
-    console.error('Erreur lors de la récupération de la workshop :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Error retrieving workshop:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la récupération de l\'atelier');
   }
 };
 
 // Fonction pour mettre à jour un workshop
 exports.updateWorkshop = async (req, res) => {
+  console.log('Endpoint: PUT /workshops/:id');
+  console.log('Request Parameters:', req.params);
+  console.log('Request Body:', req.body);
+
   const { id } = req.params;
   const {
-      eventId,
-      name,
-      ownerId,
-      photo,
-      description,
-      room,
-      numberOfPlaces,
-      price,
-      startDate,
-      endDate,
-      isOnlineWorkshop,
-      isPublic,
-      status
+    eventId,
+    name,
+    ownerId,
+    photo,
+    description,
+    room,
+    numberOfPlaces,
+    price,
+    startDate,
+    endDate,
+    isOnlineWorkshop,
+    isPublic,
+    status
   } = req.body;
-  console.log(req.params)
-  console.log(req.body)
 
   try {
     // Validation des données d'entrée
@@ -687,35 +702,36 @@ exports.updateWorkshop = async (req, res) => {
       
 
     // Réponse avec la workshop mise à jour
-    return res.status(200).json(workshopDetailResponseSerializer(workshop));
+    console.log('Workshop updated successfully:', workshop);
+    return ResponseHandler.success(res, workshopDetailResponseSerializer(workshop));
   } catch (error) {
-    console.error('Erreur lors de la mise à jour de la workshop :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Error updating workshop:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la mise à jour de l\'atelier');
   }
 };
 
 // Fonction pour approuver un workshop
 exports.approvedWorkshop = async (req, res) => {
-  const { id } = req.params;
-  // Recherche de l'workshop par nom d'workshop
-  const queryworkshop = await prisma.workshop.findUnique({
-    where: {
-      id:id,
-      isActive:true
-    },
-  });
+  console.log('Endpoint: PATCH /workshops/:id/approve');
+  console.log('Request Parameters:', req.params);
 
-  // Vérification de l'workshop
-  if (!queryworkshop) {
-    return res.status(404).json({ error: 'workshop non trouvé' });
-  }
+  const { id } = req.params;
 
   try {
-    // Mise à jour de la workshop pour une suppression douce
-    const approvedWorkshop = await prisma.workshop.update({
+    const workshop = await prisma.workshop.findUnique({
       where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
+        id,
+        isActive: true
       },
+    });
+
+    if (!workshop) {
+      console.log('Error: Workshop not found');
+      return ResponseHandler.error(res, 'Atelier non trouvé', 'NOT_FOUND');
+    }
+
+    const approvedWorkshop = await prisma.workshop.update({
+      where: { id },
       data: {
         isApproved: true,
         approvedById: req.userId,
@@ -723,189 +739,161 @@ exports.approvedWorkshop = async (req, res) => {
       },
     });
 
-    if (!approvedWorkshop) {
-      return res.status(404).json({ error: 'workshop non trouvé' });
-    }
-
-    // Réponse de suppression réussie
-    return res.status(200).send();
+    console.log('Workshop approved successfully:', approvedWorkshop);
+    return ResponseHandler.success(res, null, 'OK');
   } catch (error) {
-    console.error('Erreur lors de l\' approbation de la workshop :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Error approving workshop:', error);
+    return ResponseHandler.error(res, 'Erreur lors de l\'approbation de l\'atelier');
   }
 };
 
 // Fonction pour modifier le statut d'un workshop
 exports.changeStatusWorkshop = async (req, res) => {
+  console.log('Endpoint: PATCH /workshops/:id/status');
+  console.log('Request Parameters:', req.params);
+  console.log('Request Body:', req.body);
+
   const { id } = req.params;
   const { status } = req.body;
 
-  // Liste des statuts autorisés
   const validStatuses = ['NOTBEGUN', 'STARTED', 'ONGOING', 'FINISHED'];
 
-  // Vérification que le statut est valide
   if (!validStatuses.includes(status)) {
-    return res.status(400).json({ error: 'Statut invalide; les valeurs possibles sont: NOTBEGUN, STARTED, ONGOING, FINISHED' });
-  }
-  // Recherche de l'workshop par nom d'workshop
-  const queryworkshop = await prisma.workshop.findUnique({
-    where: {
-      id:id,
-      isActive:true
-    },
-  });
-
-  // Vérification de l'workshop
-  if (!queryworkshop) {
-    return res.status(404).json({ error: 'workshop non trouvé' });
+    console.log('Error: Invalid status');
+    return ResponseHandler.error(res, 'Statut invalide; les valeurs possibles sont: NOTBEGUN, STARTED, ONGOING, FINISHED', 'BAD_REQUEST');
   }
 
   try {
-    // Mise à jour de la workshop pour une suppression douce
-    const approvedWorkshop = await prisma.workshop.update({
+    const workshop = await prisma.workshop.findUnique({
       where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-      },
-      data: {
-        status,
+        id,
+        isActive: true
       },
     });
 
-    if (!approvedWorkshop) {
-      return res.status(404).json({ error: 'workshop non trouvé' });
+    if (!workshop) {
+      console.log('Error: Workshop not found');
+      return ResponseHandler.error(res, 'Atelier non trouvé', 'NOT_FOUND');
     }
 
-    // Réponse de mise à jour du statut réussie
-    return res.status(200).send();
+    const updatedWorkshop = await prisma.workshop.update({
+      where: { id },
+      data: { status },
+    });
+
+    console.log('Workshop status updated successfully:', updatedWorkshop);
+    return ResponseHandler.success(res, null, 'OK');
   } catch (error) {
-    console.error('Erreur lors de la mise à jour du statut du workshop :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Error updating workshop status:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la mise à jour du statut de l\'atelier');
   }
 };
 
 exports.deleteWorkshop = async (req, res) => {
+  console.log('Endpoint: DELETE /workshops/:id');
+  console.log('Request Parameters:', req.params);
+
   const { id } = req.params;
 
-  // Recherche de l'workshop par nom d'workshop
-  const queryworkshop = await prisma.workshop.findUnique({
-    where: {
-      id: id,
-      isActive: true
-    },
-  });
-
-  // Vérification de l'workshop
-  if (!queryworkshop) {
-    return res.status(404).json({ error: 'workshop non trouvé' });
-  }
-
   try {
-    // Mise à jour de la workshop pour une suppression douce
-    const deletedworkshop = await prisma.workshop.update({
+    const workshop = await prisma.workshop.findUnique({
       where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
+        id,
+        isActive: true
       },
+    });
+
+    if (!workshop) {
+      console.log('Error: Workshop not found');
+      return ResponseHandler.error(res, 'Atelier non trouvé', 'NOT_FOUND');
+    }
+
+    const deletedWorkshop = await prisma.workshop.update({
+      where: { id },
       data: {
         isActive: false,
         updatedById: req.userId,
-        updatedAt: DateTime.now().toJSDate(), // Utilisez DateTime.now().toJSDate() pour obtenir une date sérialisable
+        updatedAt: DateTime.now().toJSDate(),
       },
     });
 
-    if (!deletedworkshop) {
-      return res.status(404).json({ error: 'workshop non trouvé' });
-    }
-
-    // Réponse de suppression réussie
-    return res.status(204).send();
+    console.log('Workshop deleted successfully:', deletedWorkshop);
+    return ResponseHandler.noContent(res);
   } catch (error) {
-    console.error('Erreur lors de la suppression de la workshop :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Error deleting workshop:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la suppression de l\'atelier');
   }
 };
 
-// Fonction pour restorer un workshop
+// Fonction pour restaurer un workshop
 exports.restoreWorkshop = async (req, res) => {
+  console.log('Endpoint: PATCH /workshops/:id/restore');
+  console.log('Request Parameters:', req.params);
+
   const { id } = req.params;
 
-  // Recherche de l'workshop par nom d'workshop
-  const queryworkshop = await prisma.workshop.findUnique({
-    where: {
-      id: id,
-      isActive: false
-    },
-  });
-
-  // Vérification de l'workshop
-  if (!queryworkshop) {
-    return res.status(404).json({ error: 'workshop non trouvé' });
-  }
-
   try {
-    // Mise à jour de la workshop pour une suppression douce
-    const restoredWorkshop = await prisma.workshop.update({
+    const workshop = await prisma.workshop.findUnique({
       where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-      },
-      data: {
-        isActive: true,
-        updatedById: req.userId,
-        updatedAt: DateTime.now().toJSDate(), // Utilisez DateTime.now().toJSDate() pour obtenir une date sérialisable
+        id,
+        isActive: false
       },
     });
 
-    if (!restoredWorkshop) {
-      return res.status(404).json({ error: 'workshop non trouvé' });
+    if (!workshop) {
+      console.log('Error: Workshop not found');
+      return ResponseHandler.error(res, 'Atelier non trouvé', 'NOT_FOUND');
     }
 
-    // Réponse de suppression réussie
-    return res.status(200).send();
+    const restoredWorkshop = await prisma.workshop.update({
+      where: { id },
+      data: {
+        isActive: true,
+        updatedById: req.userId,
+        updatedAt: DateTime.now().toJSDate(),
+      },
+    });
+
+    console.log('Workshop restored successfully:', restoredWorkshop);
+    return ResponseHandler.success(res, null, 'OK');
   } catch (error) {
-    console.error('Erreur lors de la restauration de la workshop :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Error restoring workshop:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la restauration de l\'atelier');
   }
 };
 
 // Fonction pour access key un workshop
 exports.accessKeyWorkshop = async (req, res) => {
+  console.log('Endpoint: PATCH /workshops/:id/access-key');
+  console.log('Request Parameters:', req.params);
+  console.log('Request Body:', req.body);
+
   const { id } = req.params;
-  const {accessKey} = req.body;
-  console.log("accessKeyWorkshop");
-
-  // Recherche de l'workshop par nom d'workshop
-  const queryworkshop = await prisma.workshop.findUnique({
-    where: {
-      id: id,
-      isActive: true
-    },
-  });
-
-  // Vérification de l'workshop
-  if (!queryworkshop) {
-    return res.status(404).json({ error: 'workshop non trouvé' });
-  }
+  const { accessKey } = req.body;
 
   try {
-    // Mise à jour de la workshop pour creation de clé
-    const restoredWorkshop = await prisma.workshop.update({
+    const workshop = await prisma.workshop.findUnique({
       where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
+        id,
         isActive: true
-      },
-      data: {
-        accessKey: accessKey,
       },
     });
 
-    if (!restoredWorkshop) {
-      return res.status(404).json({ error: 'workshop non trouvé' });
+    if (!workshop) {
+      console.log('Error: Workshop not found');
+      return ResponseHandler.error(res, 'Atelier non trouvé', 'NOT_FOUND');
     }
 
-    // Réponse de réussie
-    return res.status(200).send();
+    const updatedWorkshop = await prisma.workshop.update({
+      where: { id },
+      data: { accessKey },
+    });
+
+    console.log('Workshop access key updated successfully:', updatedWorkshop);
+    return ResponseHandler.success(res, null, 'OK');
   } catch (error) {
-    console.error('Erreur lors de la restauration de la workshop :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Error updating workshop access key:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la mise à jour de la clé d\'accès de l\'atelier');
   }
 };
 

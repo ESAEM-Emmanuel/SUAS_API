@@ -8,32 +8,30 @@ const participantRoleCreateSerializer = require('../serializers/participantRoleC
 const participantRoleResponseSerializer = require('../serializers/participantRoleResponseSerializer');
 const participantRoleDetailResponseSerializer = require('../serializers/participantRoleDetailResponseSerializer');
 const userResponseSerializer = require('../serializers/userResponseSerializer');
+const ResponseHandler = require('../utils/responseHandler');
 
 // Fonction pour créer un nouvel participantRole
 exports.createParticipantRole = async (req, res) => {
-  console.log("createparticipantRole");
-  const { name, permissionList} = req.body;
+  const { name, permissionList } = req.body;
 
   try {
     // Validation des données d'entrée
     const { error } = participantRoleCreateSerializer.validate(req.body);
     if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+      return ResponseHandler.error(res, error.details[0].message, 'BAD_REQUEST');
     }
 
     // Vérification des contraintes d'unicité
-    console.log(participantRoleCreateSerializer.validate(req.body));
     const existingParticipantRole = await prisma.participantRole.findUnique({ where: { name } });
     if (existingParticipantRole) {
-      return res.status(400).json({ error: 'participantRole already exists' });
+      return ResponseHandler.error(res, 'Ce rôle de participant existe déjà', 'CONFLICT');
     }
 
     // Génération du numéro de référence unique
     const referenceNumber = await generateUniqueReferenceNumber(prisma.participantRole);
-    console.log(referenceNumber);
 
-    // Création de la participantRole avec Prisma
-    const newparticipantRole = await prisma.participantRole.create({
+    // Création du rôle de participant avec Prisma
+    const newParticipantRole = await prisma.participantRole.create({
       data: {
         name,
         permissionList,
@@ -43,28 +41,20 @@ exports.createParticipantRole = async (req, res) => {
         createdAt: DateTime.now().toJSDate(),
       },
     });
-    // Réponse avec la participantRole créée
-    return res.status(201).json(newparticipantRole);
+
+    return ResponseHandler.success(res, participantRoleResponseSerializer(newParticipantRole), 'CREATED');
   } catch (error) {
-    console.error('Erreur lors de la création de la participantRole :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la création du rôle de participant:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la création du rôle de participant');
   }
 };
 
 // Fonction pour récupérer tous les participantRoles avec pagination
 exports.getParticipantRoles = async (req, res) => {
   try {
-    // Liste des champs de tri valides
     const validSortFields = [
-      'id',
-      'referenceNumber',
-      'name',
-      'permissionList',
-      'createdById',
-      'updatedById',
-      'isActive',
-      'createdAt',
-      'updatedAt'
+      'id', 'referenceNumber', 'name', 'permissionList', 'createdById',
+      'updatedById', 'isActive', 'createdAt', 'updatedAt'
     ];
 
     // Récupération des paramètres de pagination depuis la requête
@@ -74,12 +64,6 @@ exports.getParticipantRoles = async (req, res) => {
     const requestedSortBy = req.query.sortBy || 'createdAt';
     const order = req.query.order?.toUpperCase() === 'ASC' ? 'asc' : 'desc';
 
-    // Récupération des paramètres de filtrage supplémentaires
-    const isActive = req.query.isActive !== undefined ? req.query.isActive === 'true' : undefined;
-    const createdById = req.query.createdById || undefined;
-    const updatedById = req.query.updatedById || undefined;
-    const permission = req.query.permission || undefined;
-
     // Validation du champ de tri
     const sortBy = validSortFields.includes(requestedSortBy) ? requestedSortBy : 'createdAt';
 
@@ -87,72 +71,8 @@ exports.getParticipantRoles = async (req, res) => {
       console.warn(`Tentative de tri sur un champ invalide: ${requestedSortBy}. Utilisation de createdAt par défaut.`);
     }
 
-    // Paramètres de filtrage par date
-    const createdAtStart = req.query.createdAtStart ? new Date(req.query.createdAtStart) : null;
-    const createdAtEnd = req.query.createdAtEnd ? new Date(req.query.createdAtEnd) : null;
-    const updatedAtStart = req.query.updatedAtStart ? new Date(req.query.updatedAtStart) : null;
-    const updatedAtEnd = req.query.updatedAtEnd ? new Date(req.query.updatedAtEnd) : null;
-    const createdAt = req.query.createdAt ? new Date(req.query.createdAt) : null;
-    const updatedAt = req.query.updatedAt ? new Date(req.query.updatedAt) : null;
-
-    // Construction de la condition de recherche
-    const whereCondition = {
-      OR: [
-        { name: { contains: search, mode: 'insensitive' } },
-        { referenceNumber: { contains: search, mode: 'insensitive' } }
-      ],
-      AND: []
-    };
-
-    // Ajout des filtres booléens et autres
-    if (isActive !== undefined) whereCondition.isActive = isActive;
-    if (createdById) whereCondition.createdById = createdById;
-    if (updatedById) whereCondition.updatedById = updatedById;
-    
-    // Filtre sur les permissions si spécifié
-    if (permission) {
-      whereCondition.permissionList = {
-        has: permission
-      };
-    }
-
-    // Ajout des conditions de date si présentes
-    if (createdAt) {
-      whereCondition.AND.push({
-        createdAt: {
-          gte: createdAt,
-          lt: new Date(createdAt.getTime() + 24 * 60 * 60 * 1000)
-        }
-      });
-    } else if (createdAtStart || createdAtEnd) {
-      whereCondition.AND.push({
-        createdAt: {
-          ...(createdAtStart && { gte: createdAtStart }),
-          ...(createdAtEnd && { lte: createdAtEnd })
-        }
-      });
-    }
-
-    if (updatedAt) {
-      whereCondition.AND.push({
-        updatedAt: {
-          gte: updatedAt,
-          lt: new Date(updatedAt.getTime() + 24 * 60 * 60 * 1000)
-        }
-      });
-    } else if (updatedAtStart || updatedAtEnd) {
-      whereCondition.AND.push({
-        updatedAt: {
-          ...(updatedAtStart && { gte: updatedAtStart }),
-          ...(updatedAtEnd && { lte: updatedAtEnd })
-        }
-      });
-    }
-
-    // Si aucune condition AND n'est ajoutée, supprimez le tableau AND
-    if (whereCondition.AND.length === 0) {
-      delete whereCondition.AND;
-    }
+    // Construction des conditions de recherche et de filtrage
+    const whereCondition = buildWhereCondition(req.query);
 
     // Récupération du nombre total de rôles de participants
     const total = await prisma.participantRole.count({ where: whereCondition });
@@ -160,17 +80,17 @@ exports.getParticipantRoles = async (req, res) => {
     // Protection contre les performances
     const MAX_FOR_UNLIMITED_QUERY = 1000;
     if (requestedLimit === -1 && total > MAX_FOR_UNLIMITED_QUERY) {
-      return res.status(400).json({
-        error: `La récupération de tous les rôles de participants est limitée à ${MAX_FOR_UNLIMITED_QUERY} entrées. Veuillez utiliser la pagination.`
-      });
+      return ResponseHandler.error(
+        res,
+        `La récupération de tous les rôles de participants est limitée à ${MAX_FOR_UNLIMITED_QUERY} entrées. Veuillez utiliser la pagination.`,
+        'BAD_REQUEST'
+      );
     }
 
     // Configuration de la requête
     const findManyOptions = {
       where: whereCondition,
-      orderBy: {
-        [sortBy]: order
-      },
+      orderBy: { [sortBy]: order },
       include: {
         created: true,
         updated: true,
@@ -203,51 +123,17 @@ exports.getParticipantRoles = async (req, res) => {
     });
 
     // Préparation de la réponse
-    const paginationData = requestedLimit === -1
-      ? {
-          total,
-          page: null,
-          limit: null,
-          totalPages: null,
-          hasNextPage: false,
-          hasPreviousPage: false
-        }
-      : {
-          total,
-          page,
-          limit: requestedLimit,
-          totalPages: Math.ceil(total / requestedLimit),
-          hasNextPage: page < Math.ceil(total / requestedLimit),
-          hasPreviousPage: page > 1
-        };
-
-    return res.status(200).json({
+    const response = {
       data: formattedParticipantRoles,
-      pagination: paginationData,
-      filters: {
-        search,
-        sortBy,
-        order,
-        dates: {
-          createdAt,
-          createdAtStart,
-          createdAtEnd,
-          updatedAt,
-          updatedAtStart,
-          updatedAtEnd
-        },
-        attributes: {
-          isActive,
-          permission,
-          createdById,
-          updatedById
-        }
-      },
+      pagination: buildPaginationData(total, page, requestedLimit),
+      filters: buildFiltersData(req.query, sortBy, order),
       validSortFields
-    });
+    };
+
+    return ResponseHandler.success(res, response);
   } catch (error) {
     console.error('Erreur lors de la récupération des rôles de participants:', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    return ResponseHandler.error(res, 'Erreur lors de la récupération des rôles de participants');
   }
 };
 
@@ -259,84 +145,69 @@ exports.getParticipantRolesInactifs = async (req, res) => {
     const participantRoles = await prisma.participantRole.findMany({
       skip: (page - 1) * limit,
       take: parseInt(limit),
-      where: {
-        isActive: false,
-      },
-      orderBy: {
-        name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
-      },
+      where: { isActive: false },
+      orderBy: { name: 'asc' },
     });
 
-    const formatedparticipantRoles = participantRoles.map(participantRoleResponseSerializer);
-    return res.status(200).json(formatedparticipantRoles);
+    const formattedParticipantRoles = participantRoles.map(participantRoleResponseSerializer);
+    return ResponseHandler.success(res, formattedParticipantRoles);
   } catch (error) {
-    console.error('Erreur lors de la récupération des participantRoles :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la récupération des rôles de participants inactifs:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la récupération des rôles de participants inactifs');
   }
 };
 
 // Fonction pour récupérer une participantRole par son ID
 exports.getParticipantRole = async (req, res) => {
-  console.log("getparticipantRole ok");
   const { id } = req.params;
 
   try {
     const participantRole = await prisma.participantRole.findUnique({
-      where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-      },
+      where: { id },
       include: {
         created: true,
         updated: true,
         participants: true,
-    },
+      },
     });
 
-    // Vérification de l'existence de la participantRole
     if (!participantRole) {
-      return res.status(404).json({ error: 'participantRole non trouvé' });
-    }
-    if(participantRole.created){
-      participantRole.created=userResponseSerializer(participantRole.created);
-    }
-    if(participantRole.updated){
-      participantRole.updated=userResponseSerializer(participantRole.updated);
-    }
-    if(participantRole.participants){
-      participantRole.participants=userResponseSerializer(participantRole.participants);
+      return ResponseHandler.error(res, 'Rôle de participant non trouvé', 'NOT_FOUND');
     }
 
-    // Réponse avec la participantRole trouvé
-    return res.status(200).json(participantRoleDetailResponseSerializer(participantRole));
+    // Formatage des relations
+    if (participantRole.created) {
+      participantRole.created = userResponseSerializer(participantRole.created);
+    }
+    if (participantRole.updated) {
+      participantRole.updated = userResponseSerializer(participantRole.updated);
+    }
+    if (participantRole.participants) {
+      participantRole.participants = participantRole.participants.map(participant => userResponseSerializer(participant));
+    }
+
+    return ResponseHandler.success(res, participantRoleDetailResponseSerializer(participantRole));
   } catch (error) {
-    console.error('Erreur lors de la récupération de la participantRole :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la récupération du rôle de participant:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la récupération du rôle de participant');
   }
 };
 
 // Fonction pour mettre à jour une participantRole
 exports.updateParticipantRole = async (req, res) => {
-  console.log("updateparticipantRole ok");
-  console.log(req.participantId);
-  console.log(req.participant);
   const { id } = req.params;
-  const {
-    name,
-    permissionList, // Add permissionList here
-  } = req.body;
+  const { name, permissionList } = req.body;
 
   try {
     // Validation des données d'entrée
     const { error } = participantRoleCreateSerializer.validate(req.body);
     if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+      return ResponseHandler.error(res, error.details[0].message, 'BAD_REQUEST');
     }
 
-    // Mise à jour de la participantRole
-    const updatedparticipantRole = await prisma.participantRole.update({
-      where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-      },
+    // Mise à jour du rôle de participant
+    await prisma.participantRole.update({
+      where: { id },
       data: {
         name,
         permissionList,
@@ -345,37 +216,35 @@ exports.updateParticipantRole = async (req, res) => {
       },
     });
 
-    // Récupération de la participantRole mis à jour
+    // Récupération du rôle de participant mis à jour
     const participantRole = await prisma.participantRole.findUnique({
-      where: {
-        id: id,
-      },
+      where: { id },
       include: {
         created: true,
         updated: true,
         participants: true,
-    },
+      },
     });
 
-    // Vérification de l'existence de la participantRole
     if (!participantRole) {
-      return res.status(404).json({ error: 'participantRole non trouvé' });
-    }
-    if(participantRole.created){
-      participantRole.created=userResponseSerializer(participantRole.created);
-    }
-    if(participantRole.updated){
-      participantRole.updated=userResponseSerializer(participantRole.updated);
-    }
-    if(participantRole.participants){
-      participantRole.participants=userResponseSerializer(participantRole.participants);
+      return ResponseHandler.error(res, 'Rôle de participant non trouvé', 'NOT_FOUND');
     }
 
-    // Réponse avec la participantRole trouvé
-    return res.status(200).json(participantRoleDetailResponseSerializer(participantRole));
+    // Formatage des relations
+    if (participantRole.created) {
+      participantRole.created = userResponseSerializer(participantRole.created);
+    }
+    if (participantRole.updated) {
+      participantRole.updated = userResponseSerializer(participantRole.updated);
+    }
+    if (participantRole.participants) {
+      participantRole.participants = participantRole.participants.map(participant => userResponseSerializer(participant));
+    }
+
+    return ResponseHandler.success(res, participantRoleDetailResponseSerializer(participantRole));
   } catch (error) {
-    console.error('Erreur lors de la mise à jour de la participantRole :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la mise à jour du rôle de participant:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la mise à jour du rôle de participant');
   }
 };
 
@@ -384,11 +253,19 @@ exports.deleteParticipantRole = async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Mise à jour de la participantRole pour une suppression douce
-    const deletedParticipantRole = await prisma.participantRole.update({
+    const participantRole = await prisma.participantRole.findUnique({
       where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
+        id,
+        isActive: true
       },
+    });
+
+    if (!participantRole) {
+      return ResponseHandler.error(res, 'Rôle de participant non trouvé', 'NOT_FOUND');
+    }
+
+    await prisma.participantRole.update({
+      where: { id },
       data: {
         isActive: false,
         updatedById: req.userId,
@@ -396,15 +273,10 @@ exports.deleteParticipantRole = async (req, res) => {
       },
     });
 
-    if (!deletedParticipantRole) {
-      return res.status(404).json({ error: 'participantRole non trouvé' });
-    }
-
-    // Réponse de suppression réussie
-    return res.status(204).send();
+    return ResponseHandler.noContent(res);
   } catch (error) {
-    console.error('Erreur lors de la suppression de la participantRole :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la suppression du rôle de participant:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la suppression du rôle de participant');
   }
 };
 
@@ -413,20 +285,19 @@ exports.restoreParticipantRole = async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Vérification de l'existence de la participantRole
-    const restoredParticipantRole = await prisma.participantRole.findUnique({
-      where: { id: id },
+    const participantRole = await prisma.participantRole.findUnique({
+      where: {
+        id,
+        isActive: false
+      },
     });
 
-    if (!restoredParticipantRole) {
-      return res.status(404).json({ error: 'participantRole non trouvé' });
+    if (!participantRole) {
+      return ResponseHandler.error(res, 'Rôle de participant non trouvé', 'NOT_FOUND');
     }
 
-    // Mise à jour de la participantRole pour le restorer
     await prisma.participantRole.update({
-      where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-      },
+      where: { id },
       data: {
         isActive: true,
         updatedById: req.userId,
@@ -434,13 +305,157 @@ exports.restoreParticipantRole = async (req, res) => {
       },
     });
 
-    // Réponse de restauration réussie
-    return res.status(200).send();
+    return ResponseHandler.success(res, null, 'OK');
   } catch (error) {
-    console.error('Erreur lors de la restauration de la participantRole :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la restauration du rôle de participant:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la restauration du rôle de participant');
   }
 };
+
+// Fonctions utilitaires
+function buildWhereCondition(query) {
+  const {
+    search = '',
+    isActive,
+    createdById,
+    updatedById,
+    permission
+  } = query;
+
+  const whereCondition = {
+    OR: [
+      { name: { contains: search, mode: 'insensitive' } },
+      { referenceNumber: { contains: search, mode: 'insensitive' } }
+    ],
+    AND: []
+  };
+
+  // Ajout des filtres booléens et autres
+  if (isActive !== undefined) whereCondition.isActive = isActive === 'true';
+  if (createdById) whereCondition.createdById = createdById;
+  if (updatedById) whereCondition.updatedById = updatedById;
+  if (permission) {
+    whereCondition.permissionList = {
+      has: permission
+    };
+  }
+
+  // Gestion des dates
+  addDateConditions(whereCondition, query);
+
+  if (whereCondition.AND.length === 0) {
+    delete whereCondition.AND;
+  }
+
+  return whereCondition;
+}
+
+function addDateConditions(whereCondition, query) {
+  const {
+    createdAt,
+    updatedAt,
+    createdAtStart,
+    createdAtEnd,
+    updatedAtStart,
+    updatedAtEnd
+  } = query;
+
+  if (createdAt) {
+    const startOfDay = new Date(createdAt);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+    whereCondition.AND.push({
+      createdAt: {
+        gte: startOfDay,
+        lt: endOfDay
+      }
+    });
+  } else if (createdAtStart || createdAtEnd) {
+    whereCondition.AND.push({
+      createdAt: {
+        ...(createdAtStart && { gte: new Date(createdAtStart) }),
+        ...(createdAtEnd && { lte: new Date(createdAtEnd) })
+      }
+    });
+  }
+
+  if (updatedAt) {
+    const startOfDay = new Date(updatedAt);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+    whereCondition.AND.push({
+      updatedAt: {
+        gte: startOfDay,
+        lt: endOfDay
+      }
+    });
+  } else if (updatedAtStart || updatedAtEnd) {
+    whereCondition.AND.push({
+      updatedAt: {
+        ...(updatedAtStart && { gte: new Date(updatedAtStart) }),
+        ...(updatedAtEnd && { lte: new Date(updatedAtEnd) })
+      }
+    });
+  }
+}
+
+function buildPaginationData(total, page, limit) {
+  if (limit === -1) {
+    return {
+      total,
+      page: null,
+      limit: null,
+      totalPages: null,
+      hasNextPage: false,
+      hasPreviousPage: false
+    };
+  }
+
+  return {
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+    hasNextPage: page < Math.ceil(total / limit),
+    hasPreviousPage: page > 1
+  };
+}
+
+function buildFiltersData(query, sortBy, order) {
+  const {
+    search,
+    createdAt,
+    createdAtStart,
+    createdAtEnd,
+    updatedAt,
+    updatedAtStart,
+    updatedAtEnd,
+    isActive,
+    createdById,
+    updatedById,
+    permission
+  } = query;
+
+  return {
+    search,
+    sortBy,
+    order,
+    dates: {
+      createdAt,
+      createdAtStart,
+      createdAtEnd,
+      updatedAt,
+      updatedAtStart,
+      updatedAtEnd
+    },
+    attributes: {
+      isActive,
+      permission,
+      createdById,
+      updatedById
+    }
+  };
+}
 
 // Export des fonctions du contrôleur
 module.exports = exports;

@@ -8,17 +8,17 @@ const eventCreateSerializer = require('../serializers/eventCreateSerializer');
 const eventResponseSerializer = require('../serializers/eventResponseSerializer');
 const eventDetailResponseSerializer = require('../serializers/eventDetailResponseSerializer');
 const userResponseSerializer = require('../serializers/userResponseSerializer');
+const ResponseHandler = require('../utils/responseHandler');
 
 // Fonction pour créer un nouvel Event
 exports.createEvent = async (req, res) => {
-  // Extraction des données de la requête
   const { categoryId, name, photo, description, startDate, endDate, ownerId, isPublic } = req.body;
 
   try {
     // Validation des données d'entrée
     const { error } = eventCreateSerializer.validate(req.body);
     if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+      return ResponseHandler.error(res, error.details[0].message, 'BAD_REQUEST');
     }
 
     // Vérification des contraintes d'unicité
@@ -26,12 +26,11 @@ exports.createEvent = async (req, res) => {
       where: { photo }
     });
     if (existingPhotoEvent) {
-      return res.status(400).json({ error: 'Please change the event image!' });
+      return ResponseHandler.error(res, 'Veuillez changer l\'image de l\'événement', 'CONFLICT');
     }
 
     // Génération du numéro de référence unique
     const referenceNumber = await generateUniqueReferenceNumber(prisma.event);
-    console.log(referenceNumber);
 
     // S'assurer que startDate et endDate ne contiennent que la date (sans heure)
     const formattedStartDate = new Date(startDate);
@@ -42,7 +41,7 @@ exports.createEvent = async (req, res) => {
 
     // Comparer les dates
     if (formattedEndDate < formattedStartDate) {
-      return res.status(400).json({ error: 'End date must be after start date' });
+      return ResponseHandler.error(res, 'La date de fin doit être postérieure à la date de début', 'BAD_REQUEST');
     }
 
     // Création de l'événement avec Prisma
@@ -57,17 +56,16 @@ exports.createEvent = async (req, res) => {
         ownerId,
         referenceNumber,
         isActive: true,
-        isPublic:isPublic|| false,
+        isPublic: isPublic || false,
         createdById: req.userId,
         createdAt: DateTime.now().toJSDate(),
       },
     });
 
-    // Réponse avec l'événement créé
-    return res.status(201).json(newEvent);
+    return ResponseHandler.success(res, eventResponseSerializer(newEvent), 'CREATED');
   } catch (error) {
-    console.error('Erreur lors de la création de l\'événement :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la création de l\'événement:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la création de l\'événement');
   }
 };
 
@@ -79,7 +77,7 @@ exports.getEventsByOwner = async (req, res) => {
   try {
     const events = await prisma.event.findMany({
       where: {
-        owner: id, // Assurez-vous que l'ID est utilisé tel quel (string)
+        ownerId: id,
         isActive: true,
       },
       include: {
@@ -90,55 +88,36 @@ exports.getEventsByOwner = async (req, res) => {
       },
       skip: (page - 1) * limit,
       take: parseInt(limit),
-      where: {
-        isActive: true,
-      },
-      orderBy: {
-        name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
-      }
+      orderBy: { name: 'asc' },
     });
 
     // Formater les objets imbriqués
     const formattedEvents = events.map(event => {
+      const formattedEvent = { ...event };
       if (event.owner) {
-        event.owner = userResponseSerializer(event.owner);
+        formattedEvent.owner = userResponseSerializer(event.owner);
       }
       if (event.masterOfCeremonies) {
-        event.masterOfCeremonies = event.masterOfCeremonies.map(mc => userResponseSerializer(mc));
+        formattedEvent.masterOfCeremonies = event.masterOfCeremonies.map(mc => userResponseSerializer(mc));
       }
-      return eventResponseSerializer(event);
+      return eventResponseSerializer(formattedEvent);
     });
 
-    return res.status(200).json(formattedEvents);
+    return ResponseHandler.success(res, formattedEvents);
   } catch (error) {
-    console.error('Erreur lors de la récupération des Events :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la récupération des événements:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la récupération des événements');
   }
 };
 
 // Fonction pour récupérer tous les Events avec pagination
 exports.getEvents = async (req, res) => {
   try {
-    // Liste des champs de tri valides
     const validSortFields = [
-      'id',
-      'referenceNumber',
-      'name',
-      'description',
-      'photo',
-      'startDate',
-      'endDate',
-      'isApproved',
-      'approvedAt',
-      'createdById',
-      'updatedById',
-      'approvedById',
-      'ownerId',
-      'categoryId',
-      'isActive',
-      'createdAt',
-      'updatedAt',
-      'isPublic'
+      'id', 'referenceNumber', 'name', 'description', 'photo', 'startDate',
+      'endDate', 'isApproved', 'approvedAt', 'createdById', 'updatedById',
+      'approvedById', 'ownerId', 'categoryId', 'isActive', 'createdAt',
+      'updatedAt', 'isPublic'
     ];
 
     // Récupération des paramètres de pagination depuis la requête
@@ -148,15 +127,6 @@ exports.getEvents = async (req, res) => {
     const requestedSortBy = req.query.sortBy || 'createdAt';
     const order = req.query.order?.toUpperCase() === 'ASC' ? 'asc' : 'desc';
 
-    // Récupération des paramètres de filtrage supplémentaires
-    const isPublic = req.query.isPublic !== undefined ? req.query.isPublic === 'true' : undefined;
-    const isActive = req.query.isActive !== undefined ? req.query.isActive === 'true' : undefined;
-    const createdById = req.query.createdById || undefined;
-    const updatedById = req.query.updatedById || undefined;
-    const approvedById = req.query.approvedById || undefined;
-    const categoryId = req.query.categoryId || undefined;
-    const ownerId = req.query.ownerId || undefined;
-
     // Validation du champ de tri
     const sortBy = validSortFields.includes(requestedSortBy) ? requestedSortBy : 'createdAt';
 
@@ -164,88 +134,26 @@ exports.getEvents = async (req, res) => {
       console.warn(`Tentative de tri sur un champ invalide: ${requestedSortBy}. Utilisation de createdAt par défaut.`);
     }
 
-    // Paramètres de filtrage par date
-    const createdAtStart = req.query.createdAtStart ? new Date(req.query.createdAtStart) : null;
-    const createdAtEnd = req.query.createdAtEnd ? new Date(req.query.createdAtEnd) : null;
-    const updatedAtStart = req.query.updatedAtStart ? new Date(req.query.updatedAtStart) : null;
-    const updatedAtEnd = req.query.updatedAtEnd ? new Date(req.query.updatedAtEnd) : null;
-    const createdAt = req.query.createdAt ? new Date(req.query.createdAt) : null;
-    const updatedAt = req.query.updatedAt ? new Date(req.query.updatedAt) : null;
+    // Construction des conditions de recherche et de filtrage
+    const whereCondition = buildWhereCondition(req.query);
 
-    // Construction de la condition de recherche
-    const whereCondition = {
-      OR: [
-        { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { referenceNumber: { contains: search, mode: 'insensitive' } }
-      ],
-      AND: []
-    };
-
-    // Ajout des filtres booléens et autres
-    if (isActive !== undefined) whereCondition.isActive = isActive;
-    if (isPublic !== undefined) whereCondition.isPublic = isPublic;
-    if (createdById) whereCondition.createdById = createdById;
-    if (updatedById) whereCondition.updatedById = updatedById;
-    if (approvedById) whereCondition.approvedById = approvedById;
-    if (ownerId) whereCondition.ownerId = ownerId;
-    if (categoryId) whereCondition.categoryId = categoryId;
-
-    // Ajout des conditions de date si présentes
-    if (createdAt) {
-      whereCondition.AND.push({
-        createdAt: {
-          gte: createdAt,
-          lt: new Date(createdAt.getTime() + 24 * 60 * 60 * 1000)
-        }
-      });
-    } else if (createdAtStart || createdAtEnd) {
-      whereCondition.AND.push({
-        createdAt: {
-          ...(createdAtStart && { gte: createdAtStart }),
-          ...(createdAtEnd && { lte: createdAtEnd })
-        }
-      });
-    }
-
-    if (updatedAt) {
-      whereCondition.AND.push({
-        updatedAt: {
-          gte: updatedAt,
-          lt: new Date(updatedAt.getTime() + 24 * 60 * 60 * 1000)
-        }
-      });
-    } else if (updatedAtStart || updatedAtEnd) {
-      whereCondition.AND.push({
-        updatedAt: {
-          ...(updatedAtStart && { gte: updatedAtStart }),
-          ...(updatedAtEnd && { lte: updatedAtEnd })
-        }
-      });
-    }
-
-    // Si aucune condition AND n'est ajoutée, supprimez le tableau AND
-    if (whereCondition.AND.length === 0) {
-      delete whereCondition.AND;
-    }
-
-    // Récupération du nombre total d'events
+    // Récupération du nombre total d'événements
     const total = await prisma.event.count({ where: whereCondition });
 
     // Protection contre les performances
     const MAX_FOR_UNLIMITED_QUERY = 1000;
     if (requestedLimit === -1 && total > MAX_FOR_UNLIMITED_QUERY) {
-      return res.status(400).json({
-        error: `La récupération de tous les events est limitée à ${MAX_FOR_UNLIMITED_QUERY} événements. Veuillez utiliser la pagination.`
-      });
+      return ResponseHandler.error(
+        res,
+        `La récupération de tous les événements est limitée à ${MAX_FOR_UNLIMITED_QUERY} entrées. Veuillez utiliser la pagination.`,
+        'BAD_REQUEST'
+      );
     }
 
     // Configuration de la requête
     const findManyOptions = {
       where: whereCondition,
-      orderBy: {
-        [sortBy]: order
-      },
+      orderBy: { [sortBy]: order },
       include: {
         category: true,
         workshops: true,
@@ -276,54 +184,17 @@ exports.getEvents = async (req, res) => {
     });
 
     // Préparation de la réponse
-    const paginationData = requestedLimit === -1
-      ? {
-          total,
-          page: null,
-          limit: null,
-          totalPages: null,
-          hasNextPage: false,
-          hasPreviousPage: false
-        }
-      : {
-          total,
-          page,
-          limit: requestedLimit,
-          totalPages: Math.ceil(total / requestedLimit),
-          hasNextPage: page < Math.ceil(total / requestedLimit),
-          hasPreviousPage: page > 1
-        };
-
-    return res.status(200).json({
+    const response = {
       data: formattedEvents,
-      pagination: paginationData,
-      filters: {
-        search,
-        sortBy,
-        order,
-        dates: {
-          createdAt,
-          createdAtStart,
-          createdAtEnd,
-          updatedAt,
-          updatedAtStart,
-          updatedAtEnd
-        },
-        attributes: {
-          isPublic,
-          isActive,
-          ownerId,
-          createdById,
-          updatedById,
-          approvedById,
-          categoryId
-        }
-      },
+      pagination: buildPaginationData(total, page, requestedLimit),
+      filters: buildFiltersData(req.query, sortBy, order),
       validSortFields
-    });
+    };
+
+    return ResponseHandler.success(res, response);
   } catch (error) {
     console.error('Erreur lors de la récupération des événements:', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    return ResponseHandler.error(res, 'Erreur lors de la récupération des événements');
   }
 };
 
@@ -341,42 +212,36 @@ exports.getEventsInactifs = async (req, res) => {
       },
       skip: (page - 1) * limit,
       take: parseInt(limit),
-      where: {
-        isActive: false,
-      },
-      orderBy: {
-        name: 'asc', // Utilisez 'asc' pour un tri croissant ou 'desc' pour un tri décroissant
-      }
+      where: { isActive: false },
+      orderBy: { name: 'asc' },
     });
 
     // Formater les objets imbriqués
     const formattedEvents = events.map(event => {
+      const formattedEvent = { ...event };
       if (event.owner) {
-        event.owner = userResponseSerializer(event.owner);
+        formattedEvent.owner = userResponseSerializer(event.owner);
       }
       if (event.masterOfCeremonies) {
-        event.masterOfCeremonies = event.masterOfCeremonies.map(mc => userResponseSerializer(mc));
+        formattedEvent.masterOfCeremonies = event.masterOfCeremonies.map(mc => userResponseSerializer(mc));
       }
-      return eventResponseSerializer(event);
+      return eventResponseSerializer(formattedEvent);
     });
 
-    return res.status(200).json(formattedEvents);
+    return ResponseHandler.success(res, formattedEvents);
   } catch (error) {
-    console.error('Erreur lors de la récupération des Events :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la récupération des événements inactifs:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la récupération des événements inactifs');
   }
 };
 
 // Fonction pour récupérer un Event par son ID
 exports.getEvent = async (req, res) => {
-  console.log("getEvent ok");
   const { id } = req.params;
 
   try {
     const event = await prisma.event.findUnique({
-      where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-      },
+      where: { id },
       include: {
         created: true,
         updated: true,
@@ -385,62 +250,44 @@ exports.getEvent = async (req, res) => {
         category: true,
         workshops: {
           include: {
-            owner: true // Inclut le détail du propriétaire du workshop
+            owner: true
           }
         },
         masterOfCeremonies: true,
       }
     });
 
-    // Vérification de l'existence de l'event
     if (!event) {
-      return res.status(404).json({ error: 'Event non trouvé' });
+      return ResponseHandler.error(res, 'Événement non trouvé', 'NOT_FOUND');
     }
 
-    if(event.owner){
-      event.owner=userResponseSerializer(event.owner);
+    // Formatage des relations
+    if (event.owner) {
+      event.owner = userResponseSerializer(event.owner);
     }
-    if(event.created){
-      event.created=userResponseSerializer(event.created);
+    if (event.created) {
+      event.created = userResponseSerializer(event.created);
     }
-    if(event.updated){
-      event.updated=userResponseSerializer(event.updated);
+    if (event.updated) {
+      event.updated = userResponseSerializer(event.updated);
     }
-    if(event.approved){
-      event.approved=userResponseSerializer(event.approved);
+    if (event.approved) {
+      event.approved = userResponseSerializer(event.approved);
     }
 
-    // Sérialisation des détails de l'event
-    const serializedEvent = {
+    // Formatage des workshops et leurs propriétaires
+    const formattedEvent = {
       ...event,
       workshops: event.workshops.map(workshop => ({
         ...workshop,
-        owner: workshop.owner ? {
-          id: workshop.owner.id,
-          username: workshop.owner.username,
-          referenceNumber: workshop.owner.referenceNumber,
-          email: workshop.owner.email,
-          phone: workshop.owner.phone,
-          name: workshop.owner.name,
-          surname: workshop.owner.surname,
-          photo: workshop.owner.photo,
-          gender: workshop.owner.gender,
-          userRoleId: workshop.owner.userRoleId,
-          isStaff: workshop.owner.isStaff,
-          isAdmin: workshop.owner.isAdmin,
-          isOwner: workshop.owner.isOwner,
-          isActive: workshop.owner.isActive,
-          createdBy: workshop.owner.createdBy,
-          updatedBy: workshop.owner.updatedBy
-        } : null
+        owner: workshop.owner ? userResponseSerializer(workshop.owner) : null
       }))
     };
 
-    // Réponse avec l'event sérialisé
-    return res.json(serializedEvent);
+    return ResponseHandler.success(res, eventDetailResponseSerializer(formattedEvent));
   } catch (error) {
-    console.error("Erreur lors de la récupération de l'événement:", error);
-    return res.status(500).json({ error: 'Une erreur est survenue lors de la récupération de l\'événement.' });
+    console.error('Erreur lors de la récupération de l\'événement:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la récupération de l\'événement');
   }
 };
 
@@ -455,13 +302,14 @@ exports.updateEvent = async (req, res) => {
     startDate,
     endDate,
     ownerId,
+    isPublic
   } = req.body;
 
   try {
     // Validation des données d'entrée
     const { error } = eventCreateSerializer.validate(req.body);
     if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+      return ResponseHandler.error(res, error.details[0].message, 'BAD_REQUEST');
     }
 
     // S'assurer que startDate et endDate ne contiennent que la date (sans heure)
@@ -473,14 +321,12 @@ exports.updateEvent = async (req, res) => {
 
     // Comparer les dates
     if (formattedEndDate < formattedStartDate) {
-      return res.status(400).json({ error: 'End date must be after start date' });
+      return ResponseHandler.error(res, 'La date de fin doit être postérieure à la date de début', 'BAD_REQUEST');
     }
 
-    // Mise à jour de la Event
+    // Mise à jour de l'événement
     const updatedEvent = await prisma.event.update({
-      where: {
-        id: id,
-      },
+      where: { id },
       data: {
         categoryId,
         name,
@@ -489,9 +335,9 @@ exports.updateEvent = async (req, res) => {
         startDate: formattedStartDate,
         endDate: formattedEndDate,
         ownerId,
-        isPublic:isPublic|| false,
+        isPublic: isPublic || false,
         updatedById: req.userId,
-        updatedAt: DateTime.now().toJSDate(), // Utilisez DateTime.now().toJSDate() pour obtenir une date sérialisable
+        updatedAt: DateTime.now().toJSDate(),
       },
       include: {
         created: true,
@@ -504,59 +350,45 @@ exports.updateEvent = async (req, res) => {
       },
     });
 
-    // Récupération de la Event mise à jour
-    const event = await prisma.event.findUnique({
-      where: {
-        id: id,
-      },
-    });
-
-    if (!event) {
-      return res.status(404).json({ error: 'Event non trouvé' });
+    // Formatage des relations
+    if (updatedEvent.owner) {
+      updatedEvent.owner = userResponseSerializer(updatedEvent.owner);
     }
-    if(event.created){
-      event.created=userResponseSerializer(event.created);
+    if (updatedEvent.created) {
+      updatedEvent.created = userResponseSerializer(updatedEvent.created);
     }
-    if(event.updated){
-      event.updated=userResponseSerializer(event.updated);
+    if (updatedEvent.updated) {
+      updatedEvent.updated = userResponseSerializer(updatedEvent.updated);
     }
-    if(event.approved){
-      event.approved=userResponseSerializer(event.approved);
-    }
-    if(event.owner){
-      event.owner=userResponseSerializer(event.owner);
+    if (updatedEvent.approved) {
+      updatedEvent.approved = userResponseSerializer(updatedEvent.approved);
     }
 
-    // Réponse avec la Event mise à jour
-    return res.status(200).json(eventDetailResponseSerializer(event));
+    return ResponseHandler.success(res, eventDetailResponseSerializer(updatedEvent));
   } catch (error) {
-    console.error('Erreur lors de la mise à jour de la Event :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la mise à jour de l\'événement:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la mise à jour de l\'événement');
   }
 };
 
 // Fonction pour approuver un Event
 exports.approvedEvent = async (req, res) => {
   const { id } = req.params;
-  // Recherche de l'Event par nom d'Event
-  const queryEvent = await prisma.event.findUnique({
-    where: {
-      id:id,
-      isActive:true
-    },
-  });
-
-  // Vérification de l'Event
-  if (!queryEvent) {
-    return res.status(404).json({ error: 'Event non trouvé' });
-  }
 
   try {
-    // Mise à jour de la Event pour une suppression douce
-    const approvedEvent = await prisma.event.update({
+    const event = await prisma.event.findUnique({
       where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
+        id,
+        isActive: true
       },
+    });
+
+    if (!event) {
+      return ResponseHandler.error(res, 'Événement non trouvé', 'NOT_FOUND');
+    }
+
+    await prisma.event.update({
+      where: { id },
       data: {
         isApproved: true,
         approvedById: req.userId,
@@ -564,15 +396,10 @@ exports.approvedEvent = async (req, res) => {
       },
     });
 
-    if (!approvedEvent) {
-      return res.status(404).json({ error: 'Event non trouvé' });
-    }
-
-    // Réponse de suppression réussie
-    return res.status(200).send();
+    return ResponseHandler.success(res, null, 'OK');
   } catch (error) {
-    console.error('Erreur lors de l\' approbation de la Event :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de l\'approbation de l\'événement:', error);
+    return ResponseHandler.error(res, 'Erreur lors de l\'approbation de l\'événement');
   }
 };
 
@@ -580,41 +407,31 @@ exports.approvedEvent = async (req, res) => {
 exports.deleteEvent = async (req, res) => {
   const { id } = req.params;
 
-  // Recherche de l'Event par nom d'Event
-  const queryEvent = await prisma.event.findUnique({
-    where: {
-      id: id,
-      isActive: true
-    },
-  });
-
-  // Vérification de l'Event
-  if (!queryEvent) {
-    return res.status(404).json({ error: 'Event non trouvé' });
-  }
-
   try {
-    // Mise à jour de la Event pour une suppression douce
-    const deletedEvent = await prisma.event.update({
+    const event = await prisma.event.findUnique({
       where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-      },
-      data: {
-        isActive: false,
-        updatedById: req.userId,
-        updatedAt: DateTime.now().toJSDate(), // Utilisez DateTime.now().toJSDate() pour obtenir une date sérialisable
+        id,
+        isActive: true
       },
     });
 
-    if (!deletedEvent) {
-      return res.status(404).json({ error: 'Event non trouvé' });
+    if (!event) {
+      return ResponseHandler.error(res, 'Événement non trouvé', 'NOT_FOUND');
     }
 
-    // Réponse de suppression réussie
-    return res.status(204).send();
+    await prisma.event.update({
+      where: { id },
+      data: {
+        isActive: false,
+        updatedById: req.userId,
+        updatedAt: DateTime.now().toJSDate(),
+      },
+    });
+
+    return ResponseHandler.noContent(res);
   } catch (error) {
-    console.error('Erreur lors de la suppression de la Event :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la suppression de l\'événement:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la suppression de l\'événement');
   }
 };
 
@@ -622,43 +439,187 @@ exports.deleteEvent = async (req, res) => {
 exports.restoreEvent = async (req, res) => {
   const { id } = req.params;
 
-  // Recherche de l'Event par nom d'Event
-  const queryEvent = await prisma.event.findUnique({
-    where: {
-      id: id,
-      isActive: false
-    },
-  });
-
-  // Vérification de l'Event
-  if (!queryEvent) {
-    return res.status(404).json({ error: 'Event non trouvé' });
-  }
-
   try {
-    // Mise à jour de la Event pour une suppression douce
-    const restoredEvent = await prisma.event.update({
+    const event = await prisma.event.findUnique({
       where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-      },
-      data: {
-        isActive: true,
-        updatedById: req.userId,
-        updatedAt: DateTime.now().toJSDate(), // Utilisez DateTime.now().toJSDate() pour obtenir une date sérialisable
+        id,
+        isActive: false
       },
     });
 
-    if (!restoredEvent) {
-      return res.status(404).json({ error: 'Event non trouvé' });
+    if (!event) {
+      return ResponseHandler.error(res, 'Événement non trouvé', 'NOT_FOUND');
     }
 
-    // Réponse de suppression réussie
-    return res.status(200).send();
+    await prisma.event.update({
+      where: { id },
+      data: {
+        isActive: true,
+        updatedById: req.userId,
+        updatedAt: DateTime.now().toJSDate(),
+      },
+    });
+
+    return ResponseHandler.success(res, null, 'OK');
   } catch (error) {
-    console.error('Erreur lors de la restauration de la Event :', error);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    console.error('Erreur lors de la restauration de l\'événement:', error);
+    return ResponseHandler.error(res, 'Erreur lors de la restauration de l\'événement');
   }
 };
+
+// Fonctions utilitaires
+function buildWhereCondition(query) {
+  const {
+    search = '',
+    isActive,
+    isPublic,
+    createdById,
+    updatedById,
+    approvedById,
+    categoryId,
+    ownerId
+  } = query;
+
+  const whereCondition = {
+    OR: [
+      { name: { contains: search, mode: 'insensitive' } },
+      { description: { contains: search, mode: 'insensitive' } },
+      { referenceNumber: { contains: search, mode: 'insensitive' } }
+    ],
+    AND: []
+  };
+
+  // Ajout des filtres booléens et autres
+  if (isActive !== undefined) whereCondition.isActive = isActive === 'true';
+  if (isPublic !== undefined) whereCondition.isPublic = isPublic === 'true';
+  if (createdById) whereCondition.createdById = createdById;
+  if (updatedById) whereCondition.updatedById = updatedById;
+  if (approvedById) whereCondition.approvedById = approvedById;
+  if (ownerId) whereCondition.ownerId = ownerId;
+  if (categoryId) whereCondition.categoryId = categoryId;
+
+  // Gestion des dates
+  addDateConditions(whereCondition, query);
+
+  if (whereCondition.AND.length === 0) {
+    delete whereCondition.AND;
+  }
+
+  return whereCondition;
+}
+
+function addDateConditions(whereCondition, query) {
+  const {
+    createdAt,
+    updatedAt,
+    createdAtStart,
+    createdAtEnd,
+    updatedAtStart,
+    updatedAtEnd
+  } = query;
+
+  if (createdAt) {
+    const startOfDay = new Date(createdAt);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+    whereCondition.AND.push({
+      createdAt: {
+        gte: startOfDay,
+        lt: endOfDay
+      }
+    });
+  } else if (createdAtStart || createdAtEnd) {
+    whereCondition.AND.push({
+      createdAt: {
+        ...(createdAtStart && { gte: new Date(createdAtStart) }),
+        ...(createdAtEnd && { lte: new Date(createdAtEnd) })
+      }
+    });
+  }
+
+  if (updatedAt) {
+    const startOfDay = new Date(updatedAt);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+    whereCondition.AND.push({
+      updatedAt: {
+        gte: startOfDay,
+        lt: endOfDay
+      }
+    });
+  } else if (updatedAtStart || updatedAtEnd) {
+    whereCondition.AND.push({
+      updatedAt: {
+        ...(updatedAtStart && { gte: new Date(updatedAtStart) }),
+        ...(updatedAtEnd && { lte: new Date(updatedAtEnd) })
+      }
+    });
+  }
+}
+
+function buildPaginationData(total, page, limit) {
+  if (limit === -1) {
+    return {
+      total,
+      page: null,
+      limit: null,
+      totalPages: null,
+      hasNextPage: false,
+      hasPreviousPage: false
+    };
+  }
+
+  return {
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+    hasNextPage: page < Math.ceil(total / limit),
+    hasPreviousPage: page > 1
+  };
+}
+
+function buildFiltersData(query, sortBy, order) {
+  const {
+    search,
+    createdAt,
+    createdAtStart,
+    createdAtEnd,
+    updatedAt,
+    updatedAtStart,
+    updatedAtEnd,
+    isPublic,
+    isActive,
+    ownerId,
+    createdById,
+    updatedById,
+    approvedById,
+    categoryId
+  } = query;
+
+  return {
+    search,
+    sortBy,
+    order,
+    dates: {
+      createdAt,
+      createdAtStart,
+      createdAtEnd,
+      updatedAt,
+      updatedAtStart,
+      updatedAtEnd
+    },
+    attributes: {
+      isPublic,
+      isActive,
+      ownerId,
+      createdById,
+      updatedById,
+      approvedById,
+      categoryId
+    }
+  };
+}
 
 // Export des fonctions du contrôleur
 module.exports = exports;
