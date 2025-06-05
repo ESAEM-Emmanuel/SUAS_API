@@ -1,99 +1,155 @@
 const express = require('express');
+const bodyParser = require('body-parser');
 const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
-require('dotenv').config();  // Ajout de la configuration dotenv
+require('dotenv').config();
+const https = require('https');
+const path = require("path");
+const fs = require("fs");
+// const http = require('http');
+const { Server } = require('socket.io');
 
 const app = express();
-const userRoutes = require('./routes/userRoutes');
-// Import other routes...
 
-// Configuration CORS avec variables d'environnement
-const corsOptions = {
-    // Origines autorisées (domaines qui peuvent accéder à l'API)
-    origin: process.env.CORS_ORIGINS ? 
-        process.env.CORS_ORIGINS.split(',').map(origin => origin.trim()) : 
-        ['http://localhost:3000', 'http://localhost:5173'],
-
-    // Méthodes HTTP autorisées
-    methods: process.env.CORS_METHODS ? 
-        process.env.CORS_METHODS.split(',').map(method => method.trim()) : 
-        ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-
-    // En-têtes autorisés
-    allowedHeaders: process.env.CORS_ALLOWED_HEADERS ? 
-        process.env.CORS_ALLOWED_HEADERS.split(',').map(header => header.trim()) : 
-        ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-
-    // Autoriser l'envoi de cookies et d'en-têtes d'authentification
-    credentials: process.env.CORS_CREDENTIALS === 'false' ? false : true,
-
-    // Durée de mise en cache préflight en secondes
-    maxAge: parseInt(process.env.CORS_MAX_AGE) || 86400,
-
-    // Configuration supplémentaire
-    preflightContinue: false,
-    optionsSuccessStatus: 204
+// Configuration SSL
+const sslOptions = {
+  key: fs.readFileSync(process.env.SSL_KEY_PATH || path.join(__dirname, "cert", "cert.key")),
+  cert: fs.readFileSync(process.env.SSL_CERT_PATH || path.join(__dirname, "cert", "cert.crt")),
+  // Options pour le développement local
+  ...(process.env.NODE_ENV === 'development' && {
+    rejectUnauthorized: false,
+    requestCert: false,
+    insecure: true,
+    secureOptions: require('constants').SSL_OP_NO_TLSv1_2,
+    minVersion: 'TLSv1'
+  })
 };
 
-// Middleware de sécurité
-app.use(helmet());
+// Création du serveur HTTPS avec gestion des erreurs
+const server = https.createServer(sslOptions, app);
+
+// Gestion des erreurs SSL
+server.on('error', (e) => {
+  if (e.code === 'EPROTO') {
+    console.log('SSL/TLS error occurred. This is normal in development with self-signed certificates.');
+  } else {
+    console.error('Server error:', e);
+  }
+});
+
+// Configuration CORS détaillée
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || '*',
+  methods: (process.env.CORS_METHODS || 'GET,POST,PUT,DELETE,PATCH,OPTIONS').split(','),
+  allowedHeaders: (process.env.CORS_ALLOWED_HEADERS || 'Content-Type,Authorization,X-Requested-With').split(','),
+  exposedHeaders: (process.env.CORS_EXPOSED_HEADERS || 'Content-Range,X-Content-Range').split(','),
+  credentials: process.env.CORS_CREDENTIALS === 'true',
+  maxAge: parseInt(process.env.CORS_MAX_AGE || '3600'),
+  optionsSuccessStatus: 200
+};
+
+// Application des middlewares
 app.use(cors(corsOptions));
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
-app.use(express.json({ limit: process.env.REQUEST_BODY_LIMIT || '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: process.env.REQUEST_BODY_LIMIT || '10mb' }));
+app.use(bodyParser.json());
 
-// Configuration du rate limiting
-const limiter = rateLimit({
-    windowMs: process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000,
-    max: process.env.RATE_LIMIT_MAX_REQUESTS || 100,
-    message: {
-        status: 'error',
-        message: process.env.RATE_LIMIT_MESSAGE || 'Trop de requêtes depuis cette IP, veuillez réessayer plus tard'
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
+// Configuration Socket.IO avec CORS
+const io = new Server(server, {
+  cors: corsOptions
 });
 
-// Appliquer le rate limiter à toutes les routes
-app.use(limiter);
-
-// Routes
-app.use('/api/users', userRoutes);
-// Use other routes...
-
-// Middleware de gestion des erreurs 404
+// Middleware pour gérer les erreurs CORS
 app.use((req, res, next) => {
-    res.status(404).json({
-        status: 'error',
-        message: 'Route non trouvée'
-    });
+  res.header('Access-Control-Allow-Origin', corsOptions.origin);
+  res.header('Access-Control-Allow-Methods', corsOptions.methods.join(','));
+  res.header('Access-Control-Allow-Headers', corsOptions.allowedHeaders.join(','));
+  res.header('Access-Control-Expose-Headers', corsOptions.exposedHeaders.join(','));
+  if (corsOptions.credentials) {
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
 });
 
-// Middleware de gestion globale des erreurs
+// Ajout d'un middleware pour gérer les erreurs SSL côté client
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'development') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Strict-Transport-Security', 'max-age=0');
+  }
+  next();
+});
+
+// Routes existantes
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+app.get("/", (req, res) => {
+  res.send("Events API running");
+});
+
+// Route de test pour vérifier la configuration
+app.get("/test-ssl", (req, res) => {
+  res.json({
+    status: "success",
+    message: "SSL/CORS configuration working",
+    environment: process.env.NODE_ENV,
+    serverTime: new Date().toISOString(),
+    clientIP: req.ip,
+    protocol: req.protocol,
+    secure: req.secure
+  });
+});
+
+// Import et utilisation des routes
+const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
+const fileRoutes = require('./routes/fileRoutes');
+const permissionRoutes = require('./routes/permissionRoutes');
+const userRoleRoutes = require('./routes/userRoleRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
+const eventRoutes = require('./routes/eventRoutes');
+const workshopRoutes = require('./routes/workshopRoutes');
+const participantRoutes = require('./routes/participantRoutes');
+// const messageRoutes = require('./routes/messageRoutes')(io);
+const participantRoleRoutes = require('./routes/participantRoleRoutes');
+const masterOfCeremonyRoutes = require('./routes/masterOfCeremonyRoutes');
+
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/files', fileRoutes);
+app.use('/api/permissions', permissionRoutes);
+app.use('/api/roles', userRoleRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/workshops', workshopRoutes);
+app.use('/api/participants', participantRoutes);
+// app.use('/api/messages', messageRoutes);
+app.use('/api/masterofceremonies', masterOfCeremonyRoutes);
+app.use("/api/usersroles", userRoleRoutes);// route des permissions
+app.use("/api/participantsroles", participantRoleRoutes);// route des permissions
+
+// Middleware pour les routes non trouvées
+app.use((req, res, next) => {
+  res.status(404).json({
+    status: "error",
+    message: "Route non trouvée"
+  });
+});
+
+// Middleware pour la gestion des erreurs
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(err.status || 500).json({
-        status: 'error',
-        message: err.message || 'Erreur interne du serveur'
-    });
+  console.error(err.stack);
+  res.status(500).json({
+    status: "error",
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong!'
+  });
 });
 
-const PORT = process.env.PORT || 3000;
+// Démarrage du serveur
+const PORT = process.env.PORT || 5000;
 const ADDRESS = process.env.ADDRESS || 'localhost';
-app.listen(PORT, ADDRESS, () => {
-    console.log(`Server is running on http://${ADDRESS}:${PORT}`);
-    console.log('Environment:', process.env.NODE_ENV || 'development');
-    
-    // Afficher la configuration CORS actuelle
-    if (process.env.NODE_ENV !== 'production') {
-        console.log('CORS Configuration:', {
-            origins: corsOptions.origin,
-            methods: corsOptions.methods,
-            allowedHeaders: corsOptions.allowedHeaders,
-            credentials: corsOptions.credentials,
-            maxAge: corsOptions.maxAge
-        });
-    }
+
+server.listen(PORT, ADDRESS, () => {
+  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode`);
+  console.log(`Server listening on https://${ADDRESS}:${PORT}`);
 });

@@ -8,102 +8,6 @@ const userCreateSerializer = require('../serializers/userCreateSerializer');
 const userResponseSerializer = require('../serializers/userResponseSerializer');
 const userDetailResponseSerializer = require('../serializers/userDetailResponseSerializer');
 
-// // Fonction pour créer un nouvel utilisateur
-// exports.createUser = async (req, res) => {
-//   const {
-//     username,
-//     email,
-//     password,
-//     name,
-//     surname,
-//     photo,
-//     phone,
-//     gender,
-//     userRoleId,
-//     isAdmin,
-//     isStaff,
-//     isOwner,
-//     isActive,
-//   } = req.body;
-
-//   try {
-//     // Validation des données d'entrée
-//     const { error } = userCreateSerializer.validate(req.body);
-//     if (error) {
-//       return res.status(400).json({ error: error.details[0].message });
-//     }
-
-//     // Vérification de la valeur du genre
-//     if (gender && !['MALE', 'FEMALE', 'OTHER'].includes(gender)) {
-//       return res.status(400).json({ error: 'Gender must be: MALE, FEMALE, or OTHER' });
-//     }
-
-//     if (!password) {
-//       return res.status(400).json({ error: 'Provide the password!' });
-//     }
-
-//     // Vérification des contraintes d'unicité
-//     const [existingUser, existingEmail, existingPhone, existingPhoto] = await Promise.all([
-//       prisma.user.findUnique({ where: { username: username } }),
-//       prisma.user.findUnique({ where: { email: email } }),
-//       prisma.user.findUnique({ where: { phone: phone } }),
-//       prisma.user.findUnique({ where: { photo: photo } })
-//     ]);
-
-//     if (existingUser) {
-//       return res.status(400).json({ error: 'username already exists' });
-//     }
-
-//     if (existingPhone) {
-//       return res.status(400).json({ error: 'Phone already exists' });
-//     }
-
-//     if (existingEmail) {
-//       return res.status(400).json({ error: 'Email already exists' });
-//     }
-//     if (existingPhoto) {
-//       return res.status(400).json({ error: 'Photo already exists' });
-//     }
-
-
-//     // Génération du numéro de référence unique
-//     const referenceNumber = await generateUniqueReferenceNumber(prisma.user);
-
-//     // Hashage du mot de passe
-//     const hashedPassword = await bcrypt.hash(password, 10);
-
-//     // Création de l'utilisateur avec Prisma
-//     const newUser = await prisma.user.create({
-//       data: {
-//         username,
-//         referenceNumber,
-//         email,
-//         password: hashedPassword,
-//         name,
-//         surname: surname || null,
-//         photo: photo || null,
-//         phone,
-//         gender,
-//         userRoleId,
-//         isAdmin: isAdmin || false,
-//         isStaff: isStaff || false,
-//         isOwner: isOwner || false,
-//         isActive: isActive || true,
-//         createdById: req.userId,
-//         createdAt: DateTime.now().toJSDate(),
-//       },
-//     });
-
-//     // Formatage de la réponse
-//     const formattedUser = userResponseSerializer(newUser);
-
-//     // Réponse avec l'utilisateur créé
-//     return res.status(201).json(formattedUser);
-//   } catch (error) {
-//     console.error('Erreur lors de la création de l\'utilisateur :', error);
-//     return res.status(500).json({ error: 'Erreur interne du serveur' });
-//   }
-// };
 
 exports.createUser = async (req, res) => {
   const {
@@ -411,10 +315,10 @@ exports.getUsers = async (req, res) => {
     const total = await prisma.user.count({ where: whereCondition });
 
     // Protection contre les performances
-    const MAX_USERS_FOR_UNLIMITED_QUERY = 1000;
-    if (requestedLimit === -1 && total > MAX_USERS_FOR_UNLIMITED_QUERY) {
+    const MAX_FOR_UNLIMITED_QUERY = 1000;
+    if (requestedLimit === -1 && total > MAX_FOR_UNLIMITED_QUERY) {
       return res.status(400).json({
-        error: `La récupération de tous les utilisateurs est limitée à ${MAX_USERS_FOR_UNLIMITED_QUERY} utilisateurs. Veuillez utiliser la pagination.`
+        error: `La récupération de tous les utilisateurs est limitée à ${MAX_FOR_UNLIMITED_QUERY} utilisateurs. Veuillez utiliser la pagination.`
       });
     }
 
@@ -579,67 +483,70 @@ exports.getUser = async (req, res) => {
 // Fonction pour mettre à jour un utilisateur
 exports.updateUser = async (req, res) => {
   const { id } = req.params;
-  const {
-    username,
-    email,
-    password,
-    name,
-    surname,
-    photo,
-    phone,
-    gender,
-    userRoleId,
-    isAdmin,
-    isStaff,
-    isOwner,
-    isActive,
-  } = req.body;
   console.log("updateUser");
 
   try {
-    // Validation des données d'entrée
-    const { error } = userCreateSerializer.validate(req.body);
-    if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+    // D'abord, récupérer l'utilisateur existant
+    const existingUser = await prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' });
     }
 
-    // Hachage du mot de passe si présent
-    let hashedPassword = undefined;
-    if (password) {
+    // Préparer les données de mise à jour
+    const updateData = {};
+
+    // Vérifier et ajouter chaque champ s'il est fourni
+    if ('username' in req.body) updateData.username = req.body.username;
+    if ('email' in req.body) updateData.email = req.body.email;
+    if ('name' in req.body) updateData.name = req.body.name;
+    if ('surname' in req.body) updateData.surname = req.body.surname;
+    if ('photo' in req.body) updateData.photo = req.body.photo;
+    if ('phone' in req.body) updateData.phone = req.body.phone;
+    if ('gender' in req.body) updateData.gender = req.body.gender;
+    if ('isAdmin' in req.body) updateData.isAdmin = req.body.isAdmin;
+    if ('isStaff' in req.body) updateData.isStaff = req.body.isStaff;
+    if ('isOwner' in req.body) updateData.isOwner = req.body.isOwner;
+    if ('isActive' in req.body) updateData.isActive = req.body.isActive;
+
+    // Gestion spéciale du mot de passe
+    if (req.body.password) {
       const salt = await bcrypt.genSalt(10);
-      hashedPassword = await bcrypt.hash(password, salt);
+      updateData.password = await bcrypt.hash(req.body.password, salt);
+    }
+
+    // Gestion spéciale du userRole
+    if ('userRoleId' in req.body) {
+      if (req.body.userRoleId) {
+        updateData.userRole = { connect: { id: req.body.userRoleId } };
+      } else {
+        updateData.userRole = { disconnect: true };
+      }
+    }
+
+    // Ajouter les champs de mise à jour
+    updateData.updatedBy = req.userId;
+    updateData.updatedAt = new Date();
+
+    // Validation des données d'entrée uniquement sur les champs fournis
+    if (Object.keys(updateData).length > 0) {
+      const { error } = userCreateSerializer.validate(req.body, { 
+        allowUnknown: true,
+        stripUnknown: false,
+        presence: 'optional' 
+      });
+      
+      if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+      }
     }
 
     // Mise à jour de l'utilisateur
     const updatedUser = await prisma.user.update({
-      where: {
-        id: id, // Assurez-vous que l'ID est utilisé tel quel (string)
-      },
-      data: {
-        username,
-        email,
-        ...(password && { password: hashedPassword }), // Inclus le mot de passe seulement s'il est présent
-        name,
-        surname: surname || null,
-        photo: photo || null,
-        phone,
-        gender,
-        // userRoleId: userRoleId || null,
-        userRole: userRoleId ? { connect: { id: userRoleId } } : undefined,
-        isAdmin: isAdmin !== undefined ? isAdmin : false,
-        isStaff: isStaff !== undefined ? isStaff : false,
-        isOwner: isOwner !== undefined ? isOwner : false,
-        isActive: isActive !== undefined ? isActive : true,
-        updatedBy: req.userId,
-        updatedAt: DateTime.now().toJSDate(),
-      },
-    });
-
-    // Récupération de l'utilisateur mis à jour
-    const user = await prisma.user.findUnique({
-      where: {
-        id: id,
-      },
+      where: { id },
+      data: updateData,
       include: {
         userRole: true,
         categoriesCreated: true,
@@ -667,12 +574,8 @@ exports.updateUser = async (req, res) => {
       },
     });
 
-    if (!user) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé' });
-    }
-
-    // Réponse avec l'utilisateur trouvé
-    return res.status(200).json(userDetailResponseSerializer(user));
+    // Réponse avec l'utilisateur mis à jour
+    return res.status(200).json(userDetailResponseSerializer(updatedUser));
   } catch (error) {
     console.error('Erreur lors de la mise à jour de l\'utilisateur :', error);
     return res.status(500).json({ error: 'Erreur interne du serveur' });
