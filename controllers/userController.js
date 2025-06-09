@@ -71,9 +71,9 @@ exports.createUser = async (req, res) => {
     // Création de l'utilisateur avec Prisma
     const newUser = await prisma.user.create({
       data: {
-        username,
+        username: username || null,
         referenceNumber,
-        email,
+        email: email || null,
         password: hashedPassword,
         name,
         surname: surname || null,
@@ -99,12 +99,14 @@ exports.createUser = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-  const { username, password } = req.body;
+  // const { username, password } = req.body;
+  const { phone, password } = req.body;
 
   try {
     // Recherche de l'utilisateur par nom d'utilisateur
     const user = await prisma.user.findUnique({
-      where: { username },
+      where: { phone },
+      // where: { username },
     });
 
     // Vérification de l'utilisateur

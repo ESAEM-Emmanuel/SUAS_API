@@ -19,7 +19,7 @@ class ResponseHandler {
         };
 
         if (data) {
-            response.data = data;
+            response.result = data;
         }
 
         return res.status(statusObj.statusCode).json(response);

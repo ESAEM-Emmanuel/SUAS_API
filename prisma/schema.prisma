@@ -16,9 +16,9 @@ datasource db {
 
 model User {
   id                        String             @id @default(uuid())
-  username                  String             @unique
+  username                  String?            @unique
   referenceNumber           String             @unique
-  email                     String             @unique
+  email                     String?             @unique
   phone                     String             @unique
   password                  String
   name                      String
@@ -94,7 +94,8 @@ model Event {
   referenceNumber    String             @unique
   name               String
   description        String
-  photo              String             @unique
+  photo              String
+  program            String?
   startDate          DateTime
   endDate            DateTime
   isApproved         Boolean            @default(false)
@@ -115,6 +116,7 @@ model Event {
   updated            User?              @relation("UpdatedBy", fields: [updatedById], references: [id])
   masterOfCeremonies MasterOfCeremony[] @relation("Event")
   workshops          Workshop[]         @relation("Event")
+  eventParticipants EventParticipant[] @relation("Event")
 }
 
 model Workshop {
@@ -124,6 +126,7 @@ model Workshop {
   description      String
   room             String
   photo            String
+  program            String?
   numberOfPlaces   Int
   price            Decimal
   isOnlineWorkshop Boolean        @default(false)
@@ -172,9 +175,9 @@ model MasterOfCeremony {
 model EventParticipant {
   id                    String          @id @default(uuid())
   referenceNumber       String?         @unique
-  eventId          String
+  eventId               String
   ownerId               String
-  eventParticipantRoleId     String?
+  eventParticipantRoleId     String
   isApproved            Boolean         @default(false)
   approvedAt            DateTime?
   createdById           String?
@@ -184,18 +187,23 @@ model EventParticipant {
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
   photo                 String?
-  event            Event          @relation("Event", fields: [eventId], references: [id])
+  event                 Event           @relation("Event", fields: [eventId], references: [id])
   owner                 User            @relation("OwnerId", fields: [ownerId], references: [id])
-  eventParticipantRole       EventParticipantRole @relation("EventParticipantRole", fields: [eventParticipantRoleId], references: [id])
-  evenApproved              User?           @relation("ApprovedBy", fields: [approvedById], references: [id])
-  created               User?           @relation("CreatedBy", fields: [createdById], references: [id])
-  updated               User?           @relation("UpdatedBy", fields: [updatedById], references: [id])
+  eventParticipantRole  EventParticipantRole @relation("EventParticipantRole", fields: [eventParticipantRoleId], references: [id])
+  approved              User?           @relation("ApprovedById", fields: [approvedById], references: [id])
+  created               User?           @relation("CreatedById", fields: [createdById], references: [id])
+  updated               User?           @relation("UpdatedById", fields: [updatedById], references: [id])
 }
 
 model Participant {
   id                    String          @id @default(uuid())
   referenceNumber       String?         @unique
   name                  String
+  firstName                  String?
+  companyName                  String?
+  businessSector                  String?
+  functionC                   String?
+  positionInCompany                   String?
   description           String
   participantRoleId     String
   isApproved            Boolean         @default(false)
@@ -285,18 +293,18 @@ model ParticipantRole {
 }
 
 model EventParticipantRole {
-  id              String        @id @default(uuid())
-  referenceNumber String        @unique
-  name            String        @unique
-  permissionList  String[]
-  createdById     String?
-  updatedById     String?
-  isActive        Boolean       @default(true)
-  createdAt       DateTime?     @default(now())
-  updatedAt       DateTime?     @updatedAt
+  id                    String            @id @default(uuid())
+  referenceNumber       String            @unique
+  name                  String            @unique
+  permissionList        String[]
+  createdById           String?
+  updatedById           String?
+  isActive             Boolean            @default(true)
+  createdAt            DateTime?          @default(now())
+  updatedAt            DateTime?          @updatedAt
   eventParticipants    EventParticipant[] @relation("EventParticipantRole")
-  created         User?         @relation("CreatedBy", fields: [createdById], references: [id])
-  updated         User?         @relation("UpdatedBy", fields: [updatedById], references: [id])
+  created              User?              @relation("createdById", fields: [createdById], references: [id])
+  updated              User?              @relation("updatedById", fields: [updatedById], references: [id])
 }
 
 model TokenBlacklist {

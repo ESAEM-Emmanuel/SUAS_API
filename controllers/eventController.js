@@ -12,7 +12,7 @@ const ResponseHandler = require('../utils/responseHandler');
 
 // Fonction pour créer un nouvel Event
 exports.createEvent = async (req, res) => {
-  const { categoryId, name, photo, description, startDate, endDate, ownerId, isPublic } = req.body;
+  const { categoryId, name, photo, program, description, startDate, endDate, ownerId, isPublic } = req.body;
 
   try {
     // Validation des données d'entrée
@@ -22,22 +22,39 @@ exports.createEvent = async (req, res) => {
     }
 
     // Vérification des contraintes d'unicité
-    const existingPhotoEvent = await prisma.event.findFirst({
-      where: { photo }
+    const existingEvent = await prisma.event.findFirst({
+      where: {
+        OR: [
+          { photo: photo },
+          { program: program }
+        ]
+      }
     });
-    if (existingPhotoEvent) {
-      return ResponseHandler.error(res, 'Veuillez changer l\'image de l\'événement', 'CONFLICT');
+    
+    if (existingEvent) {
+      let errorMessage = '';
+      if (existingEvent.program === program) {
+        errorMessage += 'Ce programme est déjà utilisé';
+      }
+      if (existingEvent.photo === photo) {
+        errorMessage += errorMessage ? ', ' : '';
+        errorMessage += 'Cette image est déjà utilisée';
+      }
+      return ResponseHandler.error(res, errorMessage, 'CONFLICT');
     }
 
     // Génération du numéro de référence unique
     const referenceNumber = await generateUniqueReferenceNumber(prisma.event);
 
-    // S'assurer que startDate et endDate ne contiennent que la date (sans heure)
-    const formattedStartDate = new Date(startDate);
-    formattedStartDate.setHours(0, 0, 0, 0);
+    // Formatage des dates
+    const formattedStartDate = startDate;
 
-    const formattedEndDate = new Date(endDate);
-    formattedEndDate.setHours(23, 59, 59, 999);
+    const formattedEndDate = endDate;
+    // const formattedStartDate = new Date(startDate);
+    // formattedStartDate.setHours(0, 0, 0, 0);
+
+    // const formattedEndDate = new Date(endDate);
+    // formattedEndDate.setHours(23, 59, 59, 999);
 
     // Comparer les dates
     if (formattedEndDate < formattedStartDate) {
@@ -50,6 +67,7 @@ exports.createEvent = async (req, res) => {
         categoryId,
         name,
         photo,
+        program,
         description,
         startDate: formattedStartDate,
         endDate: formattedEndDate,

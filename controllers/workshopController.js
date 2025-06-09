@@ -23,6 +23,7 @@ exports.createWorkshop = async (req, res) => {
     name,
     ownerId,
     photo,
+    program,
     description,
     room,
     numberOfPlaces,
@@ -40,24 +41,49 @@ exports.createWorkshop = async (req, res) => {
       return ResponseHandler.error(res, error.details[0].message, 'BAD_REQUEST');
     }
 
+    // // Vérification des contraintes d'unicité
+    // const existingPhotoworkshop = await prisma.workshop.findFirst({
+    //   where: { photo }
+    // });
+    // if (existingPhotoworkshop) {
+    //   console.log('Error: Workshop with this photo already exists');
+    //   return ResponseHandler.error(res, 'Veuillez changer l\'image de l\'atelier !', 'CONFLICT');
+    // }
+
     // Vérification des contraintes d'unicité
-    const existingPhotoworkshop = await prisma.workshop.findFirst({
-      where: { photo }
+    const existingWorkshop = await prisma.workshop.findFirst({
+      where: {
+        OR: [
+          { photo: photo },
+          { program: program }
+        ]
+      }
     });
-    if (existingPhotoworkshop) {
-      console.log('Error: Workshop with this photo already exists');
-      return ResponseHandler.error(res, 'Veuillez changer l\'image de l\'atelier !', 'CONFLICT');
+    
+    if (existingWorkshop) {
+      let errorMessage = '';
+      if (existingWorkshop.program === program) {
+        errorMessage += 'Ce programme est déjà utilisé';
+      }
+      if (existingWorkshop.photo === photo) {
+        errorMessage += errorMessage ? ', ' : '';
+        errorMessage += 'Cette image est déjà utilisée';
+      }
+      return ResponseHandler.error(res, errorMessage, 'CONFLICT');
     }
 
     // Génération du numéro de référence unique
     const referenceNumber = await generateUniqueReferenceNumber(prisma.workshop);
     
     // S'assurer que startDate et endDate ne contiennent que la date (sans heure)
-    const formattedStartDate = new Date(startDate);
-    formattedStartDate.setHours(0, 0, 0, 0);
+    const formattedStartDate = startDate;
+    const formattedEndDate = endDate;
 
-    const formattedEndDate = new Date(endDate);
-    formattedEndDate.setHours(23, 59, 59, 999);
+    // const formattedStartDate = new Date(startDate);
+    // formattedStartDate.setHours(0, 0, 0, 0);
+
+    // const formattedEndDate = new Date(endDate);
+    // formattedEndDate.setHours(23, 59, 59, 999);
 
     const event = await prisma.event.findUnique({
       where: { id: eventId }
@@ -91,6 +117,7 @@ exports.createWorkshop = async (req, res) => {
         name,
         ownerId,
         photo,
+        program,
         description,
         room,
         numberOfPlaces,
@@ -582,6 +609,7 @@ exports.updateWorkshop = async (req, res) => {
     name,
     ownerId,
     photo,
+    program,
     description,
     room,
     numberOfPlaces,
@@ -601,11 +629,14 @@ exports.updateWorkshop = async (req, res) => {
     // }
 
     // S'assurer que startDate et endDate ne contiennent que la date (sans heure)
-    const formattedStartDate = new Date(startDate);
-    formattedStartDate.setHours(0, 0, 0, 0);
+    const formattedStartDate = startDate;
 
-    const formattedEndDate = new Date(endDate);
-    formattedEndDate.setHours(23, 59, 59, 999);
+    const formattedEndDate = endDate;
+    // const formattedStartDate = new Date(startDate);
+    // formattedStartDate.setHours(0, 0, 0, 0);
+
+    // const formattedEndDate = new Date(endDate);
+    // formattedEndDate.setHours(23, 59, 59, 999);
 
     const event = await prisma.event.findUnique({
       where: {
@@ -641,6 +672,7 @@ exports.updateWorkshop = async (req, res) => {
           name,
           ownerId,
           photo,
+          program,
           description,
           room,
           numberOfPlaces,
