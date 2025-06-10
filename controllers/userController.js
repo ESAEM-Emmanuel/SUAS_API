@@ -103,7 +103,9 @@ exports.login = async (req, res) => {
 
   try {
     // Recherche de l'utilisateur par nom d'utilisateur
-    const user = await prisma.user.findUnique({
+    // const user = await prisma.user.findUnique({
+
+    const user = await prisma.user.findFirst({
       where: {
         OR: [
           { username: username }, // Cherche par username
@@ -111,7 +113,6 @@ exports.login = async (req, res) => {
           { phone: username },    // Cherche par phone
         ],
       },
-      // where: { username },
     });
 
     // Vérification de l'utilisateur
