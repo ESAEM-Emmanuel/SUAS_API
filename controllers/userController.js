@@ -99,13 +99,18 @@ exports.createUser = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-  // const { username, password } = req.body;
-  const { phone, password } = req.body;
+  const { username, password } = req.body;
 
   try {
     // Recherche de l'utilisateur par nom d'utilisateur
     const user = await prisma.user.findUnique({
-      where: { phone },
+      where: {
+        OR: [
+          { username: username }, // Cherche par username
+          { email: username },    // Cherche par email
+          { phone: username },    // Cherche par phone
+        ],
+      },
       // where: { username },
     });
 
