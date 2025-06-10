@@ -103,7 +103,7 @@ exports.login = async (req, res) => {
 
   try {
     // Recherche de l'utilisateur par nom d'utilisateur
-    // const user = await prisma.user.findUnique({
+    // const user = await prisma.user.f indUnique({
 
     const user = await prisma.user.findFirst({
       where: {
