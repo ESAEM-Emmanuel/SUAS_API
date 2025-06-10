@@ -38,7 +38,13 @@ const userDetailResponseSerializer = (user) => ({
     userRolesUpdated: user.userRolesUpdated,
     participantRolesCreated: user.participantRolesCreated,
     participantRolesUpdated: user.participantRolesUpdated,
-
+    
+    eventParticipantsApprovedBy: user.eventParticipantsApprovedBy,
+    eventParticipantsOwner: user.eventParticipantsOwner,
+    eventParticipantsCreated: user.eventParticipantsCreated,
+    eventParticipantsUpdated: user.eventParticipantsUpdated,
+    EventParticipantRolesCreated: user.EventParticipantRolesCreated,
+    EventParticipantRolesUpdated: user.EventParticipantRolesUpdated,
   });
   
   module.exports = userDetailResponseSerializer;

@@ -34,19 +34,69 @@ exports.createParticipant = async (req, res) => {
       return ResponseHandler.error(res, error.details[0].message, 'BAD_REQUEST');
     }
 
-    // Vérification des contraintes d'unicité
+    // Vérification de l'existence du workshop
+    const existingWorkshop = await prisma.workshop.findFirst({
+      where: { 
+        id: workshopId,
+      }
+    });
+    
+    if (!existingWorkshop) {
+      return ResponseHandler.error(res, 'Cet atelier n\'existe pas.');
+    }
+
+    // Vérification de l'existence de l'eventParticipant
+    let existingEventParticipant = await prisma.eventParticipant.findFirst({
+      where: { 
+        eventId: existingWorkshop.eventId,
+        ownerId: ownerId,
+      }
+    });
+
+    // Si l'eventParticipant n'existe pas, on le crée
+    if (!existingEventParticipant) {
+      // Récupération du rôle 'participant'
+      const participantRole = await prisma.eventParticipantRole.findFirst({
+        where: { 
+          name: 'participant'
+        }
+      });
+
+      if (!participantRole) {
+        return ResponseHandler.error(res, 'Le rôle participant n\'existe pas');
+      }
+
+      // Génération du numéro de référence unique pour eventParticipant
+      const eventParticipantRefNumber = await generateUniqueReferenceNumber(prisma.eventParticipant);
+
+      // Création de l'eventParticipant
+      existingEventParticipant = await prisma.eventParticipant.create({
+        data: {
+          eventId: existingWorkshop.eventId,
+          eventParticipantRoleId: participantRole.id,
+          ownerId: ownerId,
+          referenceNumber: eventParticipantRefNumber,
+          isActive: true,
+          createdById: req.userId,
+          createdAt: DateTime.now().toJSDate(),
+        },
+      });
+    }
+
+    // Vérification si le participant existe déjà dans le workshop
     const existingParticipant = await prisma.participant.findFirst({
       where: { 
         workshopId,
         ownerId,
       }
     });
+
     if (existingParticipant) {
-      return ResponseHandler.error(res, 'Ce participant existe déjà', 'CONFLICT');
+      return ResponseHandler.error(res, 'Ce participant existe déjà dans cet atelier', 'CONFLICT');
     }
 
-    // Génération du numéro de référence unique
-    const referenceNumber = await generateUniqueReferenceNumber(prisma.participant);
+    // Génération du numéro de référence unique pour le participant
+    const participantRefNumber = await generateUniqueReferenceNumber(prisma.participant);
 
     // Création du participant avec Prisma
     const newParticipant = await prisma.participant.create({
@@ -62,8 +112,8 @@ exports.createParticipant = async (req, res) => {
         description,
         participantRoleId,
         ownerId,
-        isOnlineParticipation: false,
-        referenceNumber,
+        isOnlineParticipation: isOnlineParticipation || false,
+        referenceNumber: participantRefNumber,
         isActive: true,
         isActiveMicrophone: false,
         isHandRaised: false,

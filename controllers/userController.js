@@ -160,6 +160,13 @@ exports.login = async (req, res) => {
         userRolesUpdated: true,
         participantRolesCreated: true,
         participantRolesUpdated: true,
+        
+        eventParticipantsApprovedBy: true,
+        eventParticipantsCreated: true,
+        eventParticipantsOwner: true,
+        eventParticipantsUpdated: true,
+        EventParticipantRolesCreated: true,
+        EventParticipantRolesUpdated: true,
       },
     });
     current_user = userDetailResponseSerializer(current_user);
@@ -313,6 +320,13 @@ exports.getUser = async (req, res) => {
         userRolesUpdated: true,
         participantRolesCreated: true,
         participantRolesUpdated: true,
+
+        eventParticipantsApprovedBy: true,
+        eventParticipantsOwner: true,
+        eventParticipantsCreated: true,
+        eventParticipantsUpdated: true,
+        EventParticipantRolesCreated: true,
+        EventParticipantRolesUpdated: true,
       },
     });
 
