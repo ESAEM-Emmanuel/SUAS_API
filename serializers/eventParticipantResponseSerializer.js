@@ -8,6 +8,9 @@ const eventParticipantResponseSerializer = (eventParticipant) => ({
     updatedAt: eventParticipant.updatedAt,
     createdBy: eventParticipant.createdBy,
     updatedBy: eventParticipant.updatedBy,
+    eventParticipantRole: eventParticipant.eventParticipantRole,
+    owner: eventParticipant.owner,
+    workshop: eventParticipant.workshop,
   });
   
   module.exports = eventParticipantResponseSerializer;

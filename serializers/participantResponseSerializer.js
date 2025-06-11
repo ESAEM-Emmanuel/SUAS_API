@@ -26,6 +26,7 @@ const participantResponseSerializer = (participant) => ({
 
     created: participant.created,
     updated: participant.updated,
+    participantRole: participant.participantRole,
     participants: participant.participants
   });
   

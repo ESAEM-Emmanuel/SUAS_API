@@ -63,7 +63,8 @@ exports.createParticipant = async (req, res) => {
 // Fonction pour récupérer tous les participants avec pagination
 exports.getParticipants = async (req, res) => {
   try {
-    console.log("OK object");
+    console.log("Query parameters:", req.query);
+    
     const validSortFields = [
       'id', 'referenceNumber', 'eventId', 'ownerId', 'eventParticipantRoleId',
       'isApproved', 'approvedAt', 'createdById', 'updatedById', 'approvedById',
@@ -79,34 +80,47 @@ exports.getParticipants = async (req, res) => {
     // Validation du champ de tri
     const sortBy = validSortFields.includes(requestedSortBy) ? requestedSortBy : 'createdAt';
 
-    if (requestedSortBy && !validSortFields.includes(requestedSortBy)) {
-      console.warn(`Tentative de tri sur un champ invalide: ${requestedSortBy}. Utilisation de createdAt par défaut.`);
+    // Construction des conditions de recherche et de filtrage
+    const whereCondition = {};
+    
+    // Ajout des filtres de base
+    if (req.query.eventId) {
+      whereCondition.eventId = req.query.eventId;
+    }
+    if (req.query.ownerId) {
+      whereCondition.ownerId = req.query.ownerId;
+    }
+    if (req.query.eventParticipantRoleId) {
+      whereCondition.eventParticipantRoleId = req.query.eventParticipantRoleId;
+    }
+    if (req.query.isActive !== undefined) {
+      whereCondition.isActive = req.query.isActive === 'true';
+    } else {
+      // Par défaut, on ne montre que les participants actifs
+      whereCondition.isActive = true;
     }
 
-    // Construction des conditions de recherche et de filtrage
-    const whereCondition = buildWhereCondition(req.query);
-    
     // Logs de débogage
-    console.log('Query parameters:', req.query);
     console.log('Where condition:', JSON.stringify(whereCondition, null, 2));
 
     // Vérification directe des données
-    console.log('Checking all records in eventParticipant table...');
-    const allRecords = await prisma.eventParticipant.findMany({
+    console.log('Checking records with current filters...');
+    const sampleRecords = await prisma.eventParticipant.findMany({
+      where: whereCondition,
       take: 5,
       select: {
         id: true,
-        referenceNumber: true,
+        eventId: true,
+        ownerId: true,
         isActive: true,
         createdAt: true
       }
     });
-    console.log('First 5 records in table:', allRecords);
+    console.log('Sample records found:', sampleRecords);
 
     // Récupération du nombre total de participants
     const total = await prisma.eventParticipant.count({ where: whereCondition });
-    
-    console.log('Total count:', total);
+    console.log('Total count with filters:', total);
 
     // Protection contre les performances
     const MAX_FOR_UNLIMITED_QUERY = 1000;
@@ -132,8 +146,6 @@ exports.getParticipants = async (req, res) => {
       }
     };
 
-    console.log('Find many options:', JSON.stringify(findManyOptions, null, 2));
-
     // Ajouter la pagination seulement si limit n'est pas -1
     if (requestedLimit !== -1) {
       findManyOptions.skip = (page - 1) * requestedLimit;
@@ -142,7 +154,6 @@ exports.getParticipants = async (req, res) => {
 
     // Récupération des participants
     const participants = await prisma.eventParticipant.findMany(findManyOptions);
-    
     console.log('Found participants count:', participants.length);
 
     // Formatage des participants avec les relations
@@ -167,7 +178,17 @@ exports.getParticipants = async (req, res) => {
     const response = {
       data: formattedParticipants,
       pagination: buildPaginationData(total, page, requestedLimit),
-      filters: buildFiltersData(req.query, sortBy, order),
+      filters: {
+        sortBy,
+        order,
+        dates: {},
+        attributes: {
+          eventId: req.query.eventId,
+          ownerId: req.query.ownerId,
+          eventParticipantRoleId: req.query.eventParticipantRoleId,
+          isActive: req.query.isActive
+        }
+      },
       validSortFields
     };
 
@@ -180,18 +201,67 @@ exports.getParticipants = async (req, res) => {
 
 // Fonction pour récupérer tous les participants avec pagination
 exports.getParticipantsInactifs = async (req, res) => {
-  const { page = 1, limit = 100 } = req.query;
+  const { page = 1, limit = 100, eventId, eventParticipantRoleId, ownerId } = req.query;
 
   try {
+    // Construction de la condition where
+    const whereCondition = {
+      isActive: false,
+      ...(eventId && { eventId }),
+      ...(eventParticipantRoleId && { eventParticipantRoleId }),
+      ...(ownerId && { ownerId })
+    };
+
+    // Récupération du nombre total de participants inactifs avec les filtres
+    const total = await prisma.eventParticipant.count({ where: whereCondition });
+
     const participants = await prisma.eventParticipant.findMany({
-      skip: (page - 1) * limit,
+      skip: (parseInt(page) - 1) * parseInt(limit),
       take: parseInt(limit),
-      where: { isActive: false },
-      orderBy: { name: 'asc' },
+      where: whereCondition,
+      include: {
+        eventParticipantRole: true,
+        created: true,
+        updated: true,
+        approved: true,
+        owner: true,
+        event: true,
+      },
+      orderBy: { createdAt: 'desc' },
     });
 
-    const formattedParticipants = participants.map(eventParticipantResponseSerializer);
-    return ResponseHandler.success(res, formattedParticipants);
+    // Formatage des participants avec les relations
+    const formattedParticipants = participants.map(participant => {
+      const formattedParticipant = { ...participant };
+      if (participant.created) {
+        formattedParticipant.created = userResponseSerializer(participant.created);
+      }
+      if (participant.updated) {
+        formattedParticipant.updated = userResponseSerializer(participant.updated);
+      }
+      if (participant.approved) {
+        formattedParticipant.approved = userResponseSerializer(participant.approved);
+      }
+      if (participant.owner) {
+        formattedParticipant.owner = userResponseSerializer(participant.owner);
+      }
+      return eventParticipantResponseSerializer(formattedParticipant);
+    });
+
+    // Préparation de la réponse avec pagination
+    const response = {
+      data: formattedParticipants,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        hasNextPage: parseInt(page) < Math.ceil(total / parseInt(limit)),
+        hasPreviousPage: parseInt(page) > 1
+      }
+    };
+
+    return ResponseHandler.success(res, response);
   } catch (error) {
     console.error('Erreur lors de la récupération des participants inactifs:', error);
     return ResponseHandler.error(res, 'Erreur lors de la récupération des participants inactifs');
