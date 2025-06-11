@@ -151,7 +151,13 @@ exports.login = async (req, res) => {
         participantsCreated: true,
         participantsUpdated: true,
         participantsApprovedBy: true,
-        participantsOwner: true,
+        // participantsOwner: true,
+        participantsOwner: {
+          include: {
+            participantRole: true,
+            // owner: true
+          }
+        },
         messagesCreated: true,
         messagesUpdated: true,
         permissionsCreated: true,
@@ -163,7 +169,13 @@ exports.login = async (req, res) => {
         
         eventParticipantsApprovedBy: true,
         eventParticipantsCreated: true,
-        eventParticipantsOwner: true,
+        // eventParticipantsOwner: true,
+        eventParticipantsOwner: {
+          include: {
+            eventParticipantRole: true,
+            // owner: true
+          }
+        },
         eventParticipantsUpdated: true,
         EventParticipantRolesCreated: true,
         EventParticipantRolesUpdated: true,
