@@ -812,14 +812,59 @@ exports.changeStatusWorkshop = async (req, res) => {
       where: { id },
       data: { status },
     });
+    // Récupération de la workshop mise à jour
+    const workshopStatus = await prisma.workshop.findUnique({
+      where: {
+        id: id,
+      },
+      include: {
+        owner: true,
+        created: true,
+        updated: true,
+        approved: true,
+        event: true,
+        participants: true,
+        messages: true,
+    },
+    });
 
-    console.log('Workshop status updated successfully:', updatedWorkshop);
-    return ResponseHandler.success(res, null, 'OK');
+    if (!workshopStatus) {
+    return res.status(404).json({ error: 'workshop non trouvé' });
+    }
+    if(workshopStatus.owner){
+
+      workshopStatus.owner=userResponseSerializer(workshopStatus.owner);
+    }
+    if(workshopStatus.created){
+
+      workshopStatus.created=userResponseSerializer(workshopStatus.created);
+    }
+    if(workshopStatus.updated){
+
+      workshopStatus.updated=userResponseSerializer(workshopStatus.updated);
+    }
+    if(workshopStatus.approved){
+
+      workshopStatus.approved=userResponseSerializer(workshopStatus.approved);
+    }
+      
+
+    // Réponse avec la workshop mise à jour
+    console.log('Workshop status updated successfully:', workshopStatus);
+    return ResponseHandler.success(res, workshopDetailResponseSerializer(workshopStatus));
   } catch (error) {
     console.error('Error updating workshop status:', error);
     return ResponseHandler.error(res, 'Erreur lors de la mise à jour du statut de l\'atelier');
   }
 };
+
+//     console.log('Workshop status updated successfully:', updatedWorkshop);
+//     return ResponseHandler.success(res, null, 'OK');
+//   } catch (error) {
+//     console.error('Error updating workshop status:', error);
+//     return ResponseHandler.error(res, 'Erreur lors de la mise à jour du statut de l\'atelier');
+//   }
+// };
 
 exports.deleteWorkshop = async (req, res) => {
   console.log('Endpoint: DELETE /workshops/:id');
