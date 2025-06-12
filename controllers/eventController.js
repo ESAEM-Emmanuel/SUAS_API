@@ -103,7 +103,12 @@ exports.getEventsByOwner = async (req, res) => {
         category: true,
         owner: true,
         masterOfCeremonies: true,
-        eventParticipants: true,
+        // eventParticipants: true,
+        eventParticipants:  {
+          include: {
+            eventParticipantRole: true
+          }
+        },
       },
       skip: (page - 1) * limit,
       take: parseInt(limit),
@@ -228,7 +233,12 @@ exports.getEventsInactifs = async (req, res) => {
         workshops: true,
         owner: true,
         masterOfCeremonies: true,
-        eventParticipants: true,
+        // eventParticipants: true,
+        eventParticipants:  {
+          include: {
+            eventParticipantRole: true
+          }
+        },
       },
       skip: (page - 1) * limit,
       take: parseInt(limit),
@@ -274,7 +284,12 @@ exports.getEvent = async (req, res) => {
           }
         },
         masterOfCeremonies: true,
-        eventParticipants: true,
+        // eventParticipants: true,
+        eventParticipants:  {
+          include: {
+            eventParticipantRole: true
+          }
+        },
       }
     });
 
@@ -368,7 +383,12 @@ exports.updateEvent = async (req, res) => {
         category: true,
         workshops: true,
         masterOfCeremonies: true,
-        eventParticipants: true,
+        // eventParticipants: true,
+        eventParticipants:  {
+          include: {
+            eventParticipantRole: true
+          }
+        },
       },
     });
 
