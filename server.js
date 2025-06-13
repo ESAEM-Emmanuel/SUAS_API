@@ -7,6 +7,7 @@ const path = require("path");
 const fs = require("fs");
 // const http = require('http');
 const { Server } = require('socket.io');
+const { sendEmail } = require('./services/emailService');
 
 const app = express();
 
@@ -110,9 +111,73 @@ app.use((req, res, next) => {
 // Routes existantes
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-app.get("/", (req, res) => {
-  res.send("Events API running");
+// app.get("/", async (req, res) => {
+//   try {
+//     // Test d'envoi d'email
+//     const to = process.env.TEST_EMAIL || 'test@example.com';
+//     const subject = 'Objet du mail !';
+//     const titre = 'Titre du mail !';
+//     const message = 'Message du mail !';
+//     const signature = process.env.SIGNATURE|| "L'équipe SUAS";
+//     await sendEmail(to, subject, titre, message, signature);
+    
+//     res.json({
+//       status: "success",
+//       message: "Events API running and welcome email sent successfully",
+//       to: to
+//     });
+//   } catch (error) {
+//     console.error('Error sending welcome email:', error);
+//     res.status(500).json({
+//       status: "error",
+//       message: "Error sending welcome email",
+//       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+//     });
+//   }
+// });
+
+app.get("/", async (req, res) => {
+  try {
+    const to = process.env.TEST_EMAIL || 'test@example.com';
+    const subject = 'Test avec pièce jointe';
+    const titre = 'Test d\'envoi d\'email';
+    const message = 'Ceci est un test d\'envoi d\'email avec une pièce jointe.';
+    const signature = process.env.SIGNATURE || "L'équipe SUAS";
+    
+    // Chemin du fichier spécifique
+    const filePath = path.join(__dirname, 'uploads', 'aboressance site_2025-06-05T08-15-54.609Z.png');
+    
+    // Vérification de l'existence du fichier
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Le fichier n'existe pas: ${filePath}`);
+    }
+
+    const attachments = [
+      {
+        filename: 'aboressance site_2025-06-05T08-15-54.609Z.png',
+        path: filePath
+      }
+    ];
+
+    const result = await sendEmail(to, subject, titre, message, signature, attachments);
+    
+    res.json({
+      status: "success",
+      message: "Email envoyé avec succès",
+      to: to,
+      attachments: result.attachments,
+      filePath: filePath
+    });
+  } catch (error) {
+    console.error('Error sending email:', error);
+    res.status(500).json({
+      status: "error",
+      message: "Error sending email",
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
 });
+
 
 // Route de test pour vérifier la configuration
 app.get("/test-ssl", (req, res) => {
@@ -125,6 +190,61 @@ app.get("/test-ssl", (req, res) => {
     protocol: req.protocol,
     secure: req.secure
   });
+});
+
+// Route pour envoyer un email avec une pièce jointe spécifique
+app.post("/api/send-email-with-attachment", async (req, res) => {
+  try {
+    const { to, subject, titre, message, signature, filename } = req.body;
+
+    if (!filename) {
+      return res.status(400).json({
+        status: "error",
+        message: "Le nom du fichier est requis"
+      });
+    }
+
+    const filePath = path.join(__dirname, 'uploads', filename);
+    
+    // Vérification de l'existence du fichier
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({
+        status: "error",
+        message: `Le fichier n'existe pas: ${filename}`
+      });
+    }
+
+    const attachments = [
+      {
+        filename: filename,
+        path: filePath
+      }
+    ];
+
+    const result = await sendEmail(
+      to || process.env.TEST_EMAIL,
+      subject || 'Email avec pièce jointe',
+      titre || 'Message important',
+      message || 'Veuillez trouver ci-joint le fichier demandé.',
+      signature || process.env.SIGNATURE || "L'équipe SUAS",
+      attachments
+    );
+    
+    res.json({
+      status: "success",
+      message: "Email envoyé avec succès",
+      to: to,
+      attachments: result.attachments,
+      filePath: filePath
+    });
+  } catch (error) {
+    console.error('Error sending email:', error);
+    res.status(500).json({
+      status: "error",
+      message: "Error sending email",
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
 });
 
 // Import et utilisation des routes
