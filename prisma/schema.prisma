@@ -66,6 +66,8 @@ model User {
   workshopsCreatedBy        Workshop[]         @relation("CreatedBy")
   workshopsOwner            Workshop[]         @relation("OwnerId")
   workshopsUpdatedBy        Workshop[]         @relation("UpdatedBy")
+  resetPasswordToken        String?
+  resetPasswordExpire       DateTime?
 }
 
 model Category {

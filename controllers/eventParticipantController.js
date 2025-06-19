@@ -9,6 +9,7 @@ const eventParticipantResponseSerializer = require('../serializers/eventParticip
 const eventParticipantDetailResponseSerializer = require('../serializers/eventParticipantDetailResponseSerializer');
 const userResponseSerializer = require('../serializers/userResponseSerializer');
 const ResponseHandler = require('../utils/responseHandler');
+const { sendEmail } = require('../services/emailService');
 
 // Fonction pour créer un nouvel participant
 exports.createParticipant = async (req, res) => {
@@ -417,6 +418,10 @@ exports.approvedParticipant = async (req, res) => {
         id,
         isActive: true
       },
+      include: {
+        event: true, // Inclure les informations du workshop
+        owner: true  // Inclure l'utilisateur rattaché
+      }
     });
 
     if (!participant) {
@@ -431,6 +436,19 @@ exports.approvedParticipant = async (req, res) => {
         approvedAt: DateTime.now().toJSDate(),
       },
     });
+
+    // Envoi d'un email de notification à l'utilisateur rattaché si il a un email
+    if (participant.owner && participant.owner.email) {
+      const to = participant.owner.email;
+      console.log('destinataire', to);
+      const subject = 'Votre participation a été approuvée';
+      const titre = 'Félicitations, votre participation est approuvée !';
+      const message = `Bonjour ${participant.owner.firstName || ''} ${participant.owner.name || ''},<br><br>Votre participation à l\'évènement <b>${participant.event.name || ''}</b> a été approuvée.<br>Nous vous remercions pour votre intérêt et vous souhaitons une excellente expérience.<br><br>Référence participant : <b>${participant.referenceNumber}</b>`;
+      const signature = "L'équipe SUAS";
+      sendEmail(to, subject, titre, message, signature).catch((err) => {
+        console.error('Erreur lors de l\'envoi de l\'email de notification :', err);
+      });
+    }
 
     return ResponseHandler.success(res, null, 'OK');
   } catch (error) {

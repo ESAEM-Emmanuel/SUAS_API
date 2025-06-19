@@ -6,6 +6,8 @@ const router = express.Router();
 // Route non protégée
 router.post('/register', userController.createUser);
 router.post('/login', userController.login);
+router.post('/forgot-password', userController.forgotPassword);
+router.post('/reset-password/:token', userController.resetPassword);
 
 // Middleware pour protéger les autres routes
 router.use(verifyToken);

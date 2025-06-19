@@ -9,6 +9,9 @@ const userResponseSerializer = require('../serializers/userResponseSerializer');
 const userDetailResponseSerializer = require('../serializers/userDetailResponseSerializer');
 const ResponseHandler = require('../utils/responseHandler');
 
+const crypto = require('crypto');
+const { sendEmail } = require('../services/emailService');
+
 exports.createUser = async (req, res) => {
   const {
     username,
@@ -89,6 +92,25 @@ exports.createUser = async (req, res) => {
         createdAt: DateTime.now().toJSDate(),
       },
     });
+
+    // Envoi d'un email de notification à l'utilisateur rattaché si il a un email
+    if (newUser && newUser.email) {
+      const to = newUser.email;
+      console.log('destinataire', to);
+      const subject = 'Création de compte sur SUAS';
+      const titre = 'Félicitations, votre compte a été créé !';
+      const message = `
+        Bonjour ${fullName},<br><br>
+        Votre compte a été créé avec succès.<br>
+        Nous vous remercions pour votre intérêt et vous souhaitons une excellente expérience.<br><br>
+        Référence participant : 
+        <a href="${process.env.FRONTEND_URL}"><b>Accéder au site</b></a>
+        `;
+      const signature = "L'équipe SUAS";
+      sendEmail(to, subject, titre, message, signature).catch((err) => {
+        console.error('Erreur lors de l\'envoi de l\'email de notification :', err);
+      });
+    }
 
     const formattedUser = userResponseSerializer(newUser);
     return ResponseHandler.success(res, formattedUser, 'CREATED');
@@ -682,5 +704,92 @@ function buildFiltersData(query, sortBy, order) {
     }
   };
 }
+
+exports.forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  try {
+    // const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: email }, // Cherche par username
+          { email: email },    // Cherche par email
+          { phone: email },    // Cherche par phone
+        ],
+      },
+    });
+    if (!user) return res.status(404).json({ message: "Utilisateur non trouvé" });
+    if (!user.email) return res.status(404).json({ message: "Utilisateur trouvé n'a pas d'email" });
+
+    // Générer un token unique
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpire = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    // Stocker le token et l'expiration dans la base
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetPasswordToken: resetToken,
+        resetPasswordExpire: resetTokenExpire
+      }
+    });
+
+    // Générer le lien de réinitialisation
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+    // Envoyer l'email
+    await sendEmail(
+      user.email,
+      "Réinitialisation du mot de passe",
+      "Demande de réinitialisation",
+      `<p>Bonjour,</p>
+      <p>Pour réinitialiser votre mot de passe, cliquez sur le lien ci-dessous (valable 15 minutes) :</p>
+      <a href="${resetUrl}">${resetUrl}</a>`,
+      "L'équipe SUAS"
+    );
+
+    res.status(200).json({ message: "Email de réinitialisation envoyé" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+  try {
+    // Recherche de l'utilisateur avec le token et une expiration valide
+    const user = await prisma.user.findFirst({
+      where: {
+        resetPasswordToken: token,
+        resetPasswordExpire: {
+          gte: new Date()
+        }
+      }
+    });
+    if (!user) {
+      return res.status(400).json({ message: "Lien de réinitialisation invalide ou expiré." });
+    }
+
+    // Hashage du nouveau mot de passe
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Mise à jour du mot de passe et suppression du token
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpire: null
+      }
+    });
+
+    res.status(200).json({ message: "Mot de passe réinitialisé avec succès." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
 
 module.exports = exports;

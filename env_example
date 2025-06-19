@@ -1,0 +1,58 @@
+# Environment variables declared in this file are automatically made available to Prisma.
+# See the documentation for more detail: https://pris.ly/d/prisma-schema#accessing-environment-variables-from-the-schema
+
+# Prisma supports the native connection string format for PostgreSQL, MySQL, SQLite, SQL Server, MongoDB and CockroachDB.
+# See the documentation for all the connection string options: https://pris.ly/d/connection-strings
+
+DB_HOST=localhost
+DB_USER=postgres
+DB_PASS=admin
+DB_NAME=suas_db
+DB_PORT=5432
+
+DATABASE_URL="postgresql://postgres:admin@localhost:5432/suas_db?schema=public"
+POSTGRES_URL_NON_POOLING="postgresql://postgres:admin@localhost:5432/suas_db?schema=public"
+POSTGRES_PRISMA_URL="postgresql://postgres:admin@localhost:5432/suas_db?schema=public"
+
+JWT_SECRET = "SUPER_SECRET256"
+
+# Server Configuration
+PORT=5000
+ADDRESS=172.19.120.38
+NODE_ENV=development
+
+# SSL Configuration
+SSL_KEY_PATH=./cert/cert.key
+SSL_CERT_PATH=./cert/cert.crt
+
+# CORS Configuration
+CORS_ORIGIN=*
+# CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://172.19.120.38:5000,https://172.19.120.38:3000
+CORS_METHODS=GET,POST,PUT,DELETE,PATCH,OPTIONS
+CORS_ALLOWED_HEADERS=Content-Type,Authorization,X-Requested-With
+CORS_EXPOSED_HEADERS=Content-Range,X-Content-Range
+CORS_CREDENTIALS=true
+CORS_MAX_AGE=3600
+
+# Request Limits
+REQUEST_BODY_LIMIT=10mb
+
+# Rate Limiter Configuration
+RATE_LIMIT_WINDOW_MS=3600000    # 1 heure
+RATE_LIMIT_MAX_REQUESTS=1000    # 1000 requêtes par heure
+RATE_LIMIT_MESSAGE = "Trop de requêtes depuis cette IP, veuillez réessayer plus tard"
+JWT_SECRET = "SUPER_SECRET256"
+
+USE_FULL_URL=true  # ou false selon l'environnement
+
+# Configuration SMTP
+# Configuration SMTP
+SMTP_HOST=smtp.office365.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=user@bfcgroupsa.com
+SMTP_PASSWORD=mdp_user
+SMTP_FROM=user@bfcgroupsa.com
+TEST_EMAIL=user@gmail.com
+FRONTEND_URL = https://suas.bfcgroupsa.com
+
