@@ -31,7 +31,7 @@ exports.createParticipant = async (req, res) => {
       where: { 
         eventId,
         ownerId,
-        eventParticipantRoleId,
+        // eventParticipantRoleId,
       }
     });
     if (existingParticipant) {
@@ -456,7 +456,6 @@ exports.approvedParticipant = async (req, res) => {
     return ResponseHandler.error(res, 'Erreur lors de l\'approbation du participant');
   }
 };
-
 
 exports.deleteParticipant = async (req, res) => {
   const { id } = req.params;

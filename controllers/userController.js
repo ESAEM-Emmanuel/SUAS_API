@@ -92,7 +92,6 @@ exports.createUser = async (req, res) => {
         createdAt: DateTime.now().toJSDate(),
       },
     });
-
     // Envoi d'un email de notification à l'utilisateur rattaché si il a un email
     if (newUser && newUser.email) {
       const to = newUser.email;
@@ -111,7 +110,6 @@ exports.createUser = async (req, res) => {
         console.error('Erreur lors de l\'envoi de l\'email de notification :', err);
       });
     }
-
     const formattedUser = userResponseSerializer(newUser);
     return ResponseHandler.success(res, formattedUser, 'CREATED');
   } catch (error) {
@@ -718,8 +716,8 @@ exports.forgotPassword = async (req, res) => {
         ],
       },
     });
-    if (!user) return res.status(404).json({ message: "Utilisateur non trouvé" });
-    if (!user.email) return res.status(404).json({ message: "Utilisateur trouvé n'a pas d'email" });
+    if (!user) return ResponseHandler.error(res, "Utilisateur non trouvé", "NOT_FOUND");
+    if (!user.email) return ResponseHandler.error(res, "Utilisateur trouvé n'a pas d'email", "NOT_FOUND");
 
     // Générer un token unique
     const resetToken = crypto.randomBytes(32).toString('hex');
@@ -735,23 +733,26 @@ exports.forgotPassword = async (req, res) => {
     });
 
     // Générer le lien de réinitialisation
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    const resetUrl = `${process.env.FRONTEND_URL}/resetPassword/${resetToken}`;
 
     // Envoyer l'email
-    await sendEmail(
+    const emailResult = await sendEmail(
       user.email,
       "Réinitialisation du mot de passe",
       "Demande de réinitialisation",
-      `<p>Bonjour,</p>
-      <p>Pour réinitialiser votre mot de passe, cliquez sur le lien ci-dessous (valable 15 minutes) :</p>
-      <a href="${resetUrl}">${resetUrl}</a>`,
+      `<p>Bonjour,</p>\n      <p>Pour réinitialiser votre mot de passe, cliquez sur le lien ci-dessous (valable 15 minutes) :</p>\n      <a href="${resetUrl}">${resetUrl}</a>`,
       "L'équipe SUAS"
     );
 
-    res.status(200).json({ message: "Email de réinitialisation envoyé" });
+    if (!emailResult.success) {
+      // return ResponseHandler.error(res, emailResult.error || "Erreur lors de l'envoi de l'email", "EMAIL_ERROR");
+    }
+
+    return ResponseHandler.success(res, "Email de réinitialisation envoyé");
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Erreur serveur" });
+    console.error('Erreur lors de l\'envoi de l\'email:', err);
+    // return ResponseHandler.error(res, "Erreur serveur");
+    throw err;
   }
 };
 
@@ -769,7 +770,7 @@ exports.resetPassword = async (req, res) => {
       }
     });
     if (!user) {
-      return res.status(400).json({ message: "Lien de réinitialisation invalide ou expiré." });
+      return ResponseHandler.error(res, "Lien de réinitialisation invalide ou expiré.", "BAD_REQUEST");
     }
 
     // Hashage du nouveau mot de passe
@@ -785,10 +786,10 @@ exports.resetPassword = async (req, res) => {
       }
     });
 
-    res.status(200).json({ message: "Mot de passe réinitialisé avec succès." });
+    return ResponseHandler.success(res, "Mot de passe réinitialisé avec succès.");
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Erreur serveur" });
+    return ResponseHandler.error(res, "Erreur serveur");
   }
 };
 

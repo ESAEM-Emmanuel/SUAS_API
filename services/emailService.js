@@ -64,6 +64,7 @@ const sendEmail = async (to, subject, titre, message, signature, attachments = [
     };
   } catch (error) {
     console.error('Erreur lors de l\'envoi de l\'email:', error);
+    // return { success: false, error: error.message || error };
     throw error;
   }
 };

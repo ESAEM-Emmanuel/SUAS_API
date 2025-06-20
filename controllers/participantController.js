@@ -389,6 +389,61 @@ exports.updateParticipant = async (req, res) => {
   }
 };
 
+// // Fonction pour approuver un participant
+// exports.approvedParticipant = async (req, res) => {
+//   const { id } = req.params;
+
+//   try {
+//     // Récupérer le participant avec les informations du workshop
+//     const participant = await prisma.participant.findUnique({
+//       where: {
+//         id,
+//         isActive: true
+//       },
+//       include: {
+//         workshop: true // Inclure les informations du workshop
+//       }
+//     });
+
+//     if (!participant) {
+//       return ResponseHandler.error(res, 'Participant non trouvé', 'NOT_FOUND');
+//     }
+
+    // // Compter le nombre de participants déjà approuvés pour ce workshop
+    // const approvedParticipantsCount = await prisma.participant.count({
+    //   where: {
+    //     workshopId: participant.workshopId,
+    //     isApproved: true,
+    //     isActive: true
+    //   }
+    // });
+
+    // // Vérifier si des places sont disponibles
+    // if (approvedParticipantsCount >= participant.workshop.numberOfPlaces) {
+    //   return ResponseHandler.error(
+    //     res, 
+    //     'Le nombre maximum de participants pour ce workshop a été atteint', 
+    //     'CONFLICT'
+    //   );
+    // }
+
+    // // Si tout est ok, approuver le participant
+    // await prisma.participant.update({
+    //   where: { id },
+    //   data: {
+    //     isApproved: true,
+    //     approvedById: req.userId,
+    //     approvedAt: DateTime.now().toJSDate(),
+    //   },
+    // });
+
+//     return ResponseHandler.success(res, null, 'OK');
+//   } catch (error) {
+//     console.error('Erreur lors de l\'approbation du participant:', error);
+//     return ResponseHandler.error(res, 'Erreur lors de l\'approbation du participant');
+//   }
+// };
+
 // Fonction pour approuver un participant
 exports.approvedParticipant = async (req, res) => {
   const { id } = req.params;
