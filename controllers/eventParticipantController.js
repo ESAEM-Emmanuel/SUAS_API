@@ -74,7 +74,7 @@ exports.getParticipants = async (req, res) => {
 
     // Récupération des paramètres de pagination depuis la requête
     const page = parseInt(req.query.page) || 1;
-    const requestedLimit = parseInt(req.query.limit) || 10;
+    const requestedLimit = parseInt(req.query.limit) || 100;
     const requestedSortBy = req.query.sortBy || 'createdAt';
     const order = req.query.order?.toUpperCase() === 'ASC' ? 'asc' : 'desc';
 
